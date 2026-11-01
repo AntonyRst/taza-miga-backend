@@ -1,0 +1,10 @@
+CREATE TABLE IF NOT EXISTS categorias (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  negocio_id INT NOT NULL,
+  nombre_es VARCHAR(80) NOT NULL,
+  nombre_en VARCHAR(80) NOT NULL,
+  orden INT NOT NULL DEFAULT 0,
+  activa BOOLEAN NOT NULL DEFAULT TRUE,
+  creado_en TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_categorias_negocio FOREIGN KEY (negocio_id) REFERENCES negocios(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

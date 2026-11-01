@@ -259,3 +259,249 @@ Authorization: Bearer {{tokenDueno}}
   "rol": "BARISTA",
   "sucursalId": 1
 }
+
+
+### ===================================================================
+### 9. HU-09: ADMINISTRACIÓN DE CATEGORÍAS
+### Solo gerente y dueño pueden crear, editar y desactivar categorías.
+### No se desactiva una categoría con productos activos (RN-10).
+### ===================================================================
+
+### 9.1 [HU-09] Listar categorías del negocio (200 OK)
+GET {{baseUrl}}/api/categorias
+Authorization: Bearer {{tokenDueno}}
+
+### 9.2 [HU-09] Crear nueva categoría válida (201 Created)
+# @name crearCategoria
+POST {{baseUrl}}/api/categorias
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "nombre_es": "Tés e Infusiones",
+  "nombre_en": "Teas & Herbal Infusions",
+  "orden": 4,
+  "activa": true
+}
+
+### ID de la categoría creada
+@idCategoriaNueva = {{crearCategoria.response.body.id}}
+
+### 9.3 [HU-09] Editar nombre y orden de una categoría (200 OK)
+PUT {{baseUrl}}/api/categorias/{{idCategoriaNueva}}
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "nombre_es": "Tés Finos e Infusiones",
+  "orden": 5
+}
+
+### 9.4 [HU-09, RN-10] Intentar desactivar categoría 1 que tiene productos activos (409 Conflict)
+PATCH {{baseUrl}}/api/categorias/1/activo
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "activa": false
+}
+
+### 9.5 [HU-09] Desactivar categoría vacía sin productos activos (200 OK)
+PATCH {{baseUrl}}/api/categorias/{{idCategoriaNueva}}/activo
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "activa": false
+}
+
+
+### ===================================================================
+### 10. HU-10: ADMINISTRACIÓN DE GRUPOS DE OPCIONES Y OPCIONES
+### Grupos de personalización (leche, dulzor, extras) y opciones con precios.
+### Precios extra mayores o iguales a 0 (RN-12).
+### ===================================================================
+
+### 10.1 [HU-10] Listar grupos de opciones con sus opciones hijas (200 OK)
+GET {{baseUrl}}/api/grupos-opciones
+Authorization: Bearer {{tokenDueno}}
+
+### 10.2 [HU-10] Crear un nuevo grupo de opciones (201 Created)
+# @name crearGrupo
+POST {{baseUrl}}/api/grupos-opciones
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "nombre_es": "Tipo de Tostado",
+  "nombre_en": "Roast Profile",
+  "tipo_seleccion": "UNICA",
+  "obligatorio": false,
+  "activo": true
+}
+
+### ID del grupo creado
+@idGrupoNuevo = {{crearGrupo.response.body.id}}
+
+### 10.3 [HU-10, RN-12] Intentar crear opción con precio extra negativo (400 Bad Request)
+POST {{baseUrl}}/api/grupos-opciones/{{idGrupoNuevo}}/opciones
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "nombre_es": "Tueste Medio",
+  "nombre_en": "Medium Roast",
+  "precio_extra": -0.50
+}
+
+### 10.4 [HU-10] Crear opción válida dentro del grupo (201 Created)
+# @name crearOpcion
+POST {{baseUrl}}/api/grupos-opciones/{{idGrupoNuevo}}/opciones
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "nombre_es": "Tueste Claro Floral",
+  "nombre_en": "Light Floral Roast",
+  "precio_extra": 0.50,
+  "es_predeterminada": true
+}
+
+### ID de la opción creada
+@idOpcionNueva = {{crearOpcion.response.body.id}}
+
+### 10.5 [HU-10] Desactivar una opción (200 OK)
+PATCH {{baseUrl}}/api/opciones/{{idOpcionNueva}}/activo
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "activa": false
+}
+
+
+### ===================================================================
+### 11. HU-09: ADMINISTRACIÓN DE PRODUCTOS
+### Crear productos con fotos, precio > 0 (RN-12), grupos asignados
+### y registro en auditoria_logs ante cambio de precio (RN-27).
+### ===================================================================
+
+### 11.1 [HU-09] Listar todos los productos del negocio (200 OK)
+GET {{baseUrl}}/api/productos
+Authorization: Bearer {{tokenDueno}}
+
+### 11.2 [HU-09, RN-12] Intentar crear producto con precio 0 (400 Bad Request)
+POST {{baseUrl}}/api/productos
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "categoria_id": 1,
+  "nombre_es": "Café Gratis",
+  "nombre_en": "Free Coffee",
+  "precio": 0.00
+}
+
+### 11.3 [HU-09] Crear producto válido con grupos de opciones asignados (201 Created)
+# @name crearProducto
+POST {{baseUrl}}/api/productos
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "categoria_id": 1,
+  "nombre_es": "Flat White Especial",
+  "nombre_en": "Special Flat White",
+  "descripcion_es": "Doble ristretto con leche cremosa microtexturizada.",
+  "descripcion_en": "Double ristretto with microtextured velvety steamed milk.",
+  "precio": 4.00,
+  "imagen_url": "https://images.unsplash.com/photo-1577968897966-3d4325b36b61?w=600",
+  "disponible": true,
+  "activo": true,
+  "grupos_ids": [1, 2]
+}
+
+### ID del producto creado
+@idProductoNuevo = {{crearProducto.response.body.id}}
+
+### 11.4 [HU-09, RN-27] Cambiar precio del producto (200 OK - Genera log en auditoria_logs)
+PUT {{baseUrl}}/api/productos/{{idProductoNuevo}}
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "precio": 4.50
+}
+
+### 11.5 [HU-09] Marcar producto como no disponible (agotado por hoy) (200 OK)
+PATCH {{baseUrl}}/api/productos/{{idProductoNuevo}}/disponible
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "disponible": false
+}
+
+### 11.6 [HU-09, RN-10, RN-27] Desactivar producto (retirar del menú) (200 OK)
+PATCH {{baseUrl}}/api/productos/{{idProductoNuevo}}/activo
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "activo": false
+}
+
+
+### ===================================================================
+### 12. SEGURIDAD Y PERMISOS EN MENÚ (RN-11, RN-01)
+### Solo GERENTE y DUENO administran; BARISTA responde 403.
+### Acceder a productos de otro negocio responde 404.
+### ===================================================================
+
+### 12.1 [RN-11] Barista intenta crear una categoría (403 Forbidden)
+POST {{baseUrl}}/api/categorias
+Content-Type: application/json
+Authorization: Bearer {{tokenBarista}}
+
+{
+  "nombre_es": "Categoría No Permitida",
+  "nombre_en": "Unauthorized Category",
+  "orden": 1
+}
+
+### 12.2 [RN-11] Barista intenta modificar un producto (403 Forbidden)
+PUT {{baseUrl}}/api/productos/1
+Content-Type: application/json
+Authorization: Bearer {{tokenBarista}}
+
+{
+  "precio": 9.99
+}
+
+### 12.3 [RN-01] Dueño de Negocio 2 intenta consultar producto 1 de Negocio 1 (404 Not Found)
+GET {{baseUrl}}/api/productos/1
+Authorization: Bearer {{tokenNegocio2}}
+
+### 12.4 [RN-01] Dueño de Negocio 2 intenta editar producto 1 de Negocio 1 (404 Not Found)
+PUT {{baseUrl}}/api/productos/1
+Content-Type: application/json
+Authorization: Bearer {{tokenNegocio2}}
+
+{
+  "nombre_es": "Ataque Malicioso"
+}
+
+
+### ===================================================================
+### 13. RUTAS PÚBLICAS DEL CATÁLOGO (HU-05, HU-06)
+### El cliente consulta sin token usando el slug del negocio.
+### ===================================================================
+
+### 13.1 [HU-05, HU-06] Consultar catálogo completo del negocio por slug (200 OK - Sin token)
+GET {{baseUrl}}/api/publico/taza-miga/menu
+
+### 13.2 Consultar sucursales activas del negocio por slug (200 OK - Sin token)
+GET {{baseUrl}}/api/publico/taza-miga/sucursales
+
+### 13.3 Consultar catálogo con slug inexistente (404 Not Found)
+GET {{baseUrl}}/api/publico/negocio-inexistente/menu

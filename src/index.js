@@ -3,6 +3,11 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import categoriaRoutes from './routes/categoriaRoutes.js';
+import grupoOpcionesRoutes from './routes/grupoOpcionesRoutes.js';
+import opcionRoutes from './routes/opcionRoutes.js';
+import productoRoutes from './routes/productoRoutes.js';
+import publicoRoutes from './routes/publicoRoutes.js';
 import { manejarErrores } from './middlewares/manejarErrores.js';
 
 dotenv.config();
@@ -31,8 +36,17 @@ app.get('/api/salud', (req, res) => {
 // Rutas de autenticación
 app.use('/api/auth', authRoutes);
 
-// Rutas de administración (RN-01, RN-02, RN-03)
+// Rutas de administración básica y usuarios (RN-01, RN-02, RN-03)
 app.use('/api/admin', adminRoutes);
+
+// Rutas de administración de catálogo y menú (HU-09, HU-10, RN-10, RN-11, RN-12)
+app.use('/api/categorias', categoriaRoutes);
+app.use('/api/grupos-opciones', grupoOpcionesRoutes);
+app.use('/api/opciones', opcionRoutes);
+app.use('/api/productos', productoRoutes);
+
+// Rutas públicas para clientes sin cuenta (HU-05, HU-06)
+app.use('/api/publico', publicoRoutes);
 
 // Middleware global de manejo de errores
 app.use(manejarErrores);

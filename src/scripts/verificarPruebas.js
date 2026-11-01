@@ -216,6 +216,186 @@ async function correrPruebas() {
   });
   asegurar('8.2 Crear usuario con correo único responde 201 Created', usuarioNuevo.status === 201);
 
+  // 9. HU-09: Categorías
+  console.log('\n--- 9. HU-09: Administración de categorías ---');
+  const catListar = await peticion('/api/categorias', {
+    headers: { Authorization: `Bearer ${tokenDueno}` }
+  });
+  asegurar('9.1 Listar categorías 200 OK', catListar.status === 200 && Array.isArray(catListar.data));
+
+  const catCrear = await peticion('/api/categorias', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({
+      nombre_es: 'Tés e Infusiones',
+      nombre_en: 'Teas & Herbal Infusions',
+      orden: 4,
+      activa: true
+    })
+  });
+  asegurar('9.2 Crear categoría 201 Created', catCrear.status === 201 && Boolean(catCrear.data.id));
+  const catId = catCrear.data?.id;
+
+  const catEditar = await peticion(`/api/categorias/${catId}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({ nombre_es: 'Tés Finos', orden: 5 })
+  });
+  asegurar('9.3 Editar categoría 200 OK', catEditar.status === 200 && catEditar.data.nombreEs === 'Tés Finos');
+
+  const catDesactivarConProd = await peticion('/api/categorias/1/activo', {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({ activa: false })
+  });
+  asegurar('9.4 Desactivar categoría con productos activos responde 409 (RN-10)', catDesactivarConProd.status === 409);
+
+  const catDesactivarSinProd = await peticion(`/api/categorias/${catId}/activo`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({ activa: false })
+  });
+  asegurar('9.5 Desactivar categoría sin productos activos 200 OK', catDesactivarSinProd.status === 200);
+
+  // 10. HU-10: Grupos de opciones y opciones
+  console.log('\n--- 10. HU-10: Grupos de opciones y opciones ---');
+  const gruposListar = await peticion('/api/grupos-opciones', {
+    headers: { Authorization: `Bearer ${tokenDueno}` }
+  });
+  asegurar('10.1 Listar grupos de opciones 200 OK', gruposListar.status === 200 && Array.isArray(gruposListar.data));
+
+  const grupoCrear = await peticion('/api/grupos-opciones', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({
+      nombre_es: 'Tipo de Tostado',
+      nombre_en: 'Roast Profile',
+      tipo_seleccion: 'UNICA',
+      obligatorio: false
+    })
+  });
+  asegurar('10.2 Crear grupo de opciones 201 Created', grupoCrear.status === 201);
+  const grupoId = grupoCrear.data?.id;
+
+  const opcionPrecioNegativo = await peticion(`/api/grupos-opciones/${grupoId}/opciones`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({
+      nombre_es: 'Tueste Medio',
+      nombre_en: 'Medium Roast',
+      precio_extra: -0.50
+    })
+  });
+  asegurar('10.3 Opción con precio negativo responde 400 (RN-12)', opcionPrecioNegativo.status === 400);
+
+  const opcionCrear = await peticion(`/api/grupos-opciones/${grupoId}/opciones`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({
+      nombre_es: 'Tueste Claro Floral',
+      nombre_en: 'Light Floral Roast',
+      precio_extra: 0.50,
+      es_predeterminada: true
+    })
+  });
+  asegurar('10.4 Crear opción válida 201 Created', opcionCrear.status === 201);
+  const opcionId = opcionCrear.data?.id;
+
+  const opcionDesactivar = await peticion(`/api/opciones/${opcionId}/activo`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({ activa: false })
+  });
+  asegurar('10.5 Desactivar opción 200 OK', opcionDesactivar.status === 200);
+
+  // 11. HU-09: Productos
+  console.log('\n--- 11. HU-09: Productos ---');
+  const prodListar = await peticion('/api/productos', {
+    headers: { Authorization: `Bearer ${tokenDueno}` }
+  });
+  asegurar('11.1 Listar productos 200 OK', prodListar.status === 200 && Array.isArray(prodListar.data));
+
+  const prodPrecioCero = await peticion('/api/productos', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({
+      categoria_id: 1,
+      nombre_es: 'Café Gratis',
+      nombre_en: 'Free Coffee',
+      precio: 0.00
+    })
+  });
+  asegurar('11.2 Crear producto con precio 0 responde 400 (RN-12)', prodPrecioCero.status === 400);
+
+  const prodCrear = await peticion('/api/productos', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({
+      categoria_id: 1,
+      nombre_es: 'Flat White Especial',
+      nombre_en: 'Special Flat White',
+      descripcion_es: 'Doble ristretto con leche cremosa.',
+      descripcion_en: 'Double ristretto with microtextured milk.',
+      precio: 4.00,
+      grupos_ids: [1, 2]
+    })
+  });
+  asegurar('11.3 Crear producto con grupos 201 Created', prodCrear.status === 201);
+  const prodId = prodCrear.data?.id;
+
+  const prodCambiarPrecio = await peticion(`/api/productos/${prodId}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({ precio: 4.50 })
+  });
+  asegurar('11.4 Cambiar precio de producto 200 OK (auditoría RN-27)', prodCambiarPrecio.status === 200 && prodCambiarPrecio.data.precio === 4.5);
+
+  const prodDisponibilidad = await peticion(`/api/productos/${prodId}/disponible`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({ disponible: false })
+  });
+  asegurar('11.5 Marcar producto como agotado/no disponible 200 OK', prodDisponibilidad.status === 200 && prodDisponibilidad.data.disponible === false);
+
+  const prodDesactivar = await peticion(`/api/productos/${prodId}/activo`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({ activo: false })
+  });
+  asegurar('11.6 Desactivar producto 200 OK (RN-10, RN-27)', prodDesactivar.status === 200 && prodDesactivar.data.activo === false);
+
+  // 12. Seguridad y roles (RN-11, RN-01)
+  console.log('\n--- 12. Seguridad y permisos en menú ---');
+  const baristaCreaCategoria = await peticion('/api/categorias', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenBarista}` },
+    body: JSON.stringify({ nombre_es: 'No Permitido', nombre_en: 'Unauthorized' })
+  });
+  asegurar('12.1 Barista creando categoría responde 403 Forbidden (RN-11)', baristaCreaCategoria.status === 403);
+
+  const baristaEditaProd = await peticion('/api/productos/1', {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${tokenBarista}` },
+    body: JSON.stringify({ precio: 9.99 })
+  });
+  asegurar('12.2 Barista modificando producto responde 403 Forbidden (RN-11)', baristaEditaProd.status === 403);
+
+  const negocio2ProdAjeno = await peticion('/api/productos/1', {
+    headers: { Authorization: `Bearer ${tokenNegocio2}` }
+  });
+  asegurar('12.3 Negocio 2 pidiendo producto de Negocio 1 responde 404 Not Found (RN-01)', negocio2ProdAjeno.status === 404);
+
+  // 13. Rutas públicas
+  console.log('\n--- 13. Rutas públicas de catálogo ---');
+  const menuPublico = await peticion('/api/publico/taza-miga/menu');
+  asegurar('13.1 Catálogo público sin token 200 OK', menuPublico.status === 200 && menuPublico.data.productos.length > 0);
+
+  const sucursalesPublicas = await peticion('/api/publico/taza-miga/sucursales');
+  asegurar('13.2 Sucursales públicas sin token 200 OK', sucursalesPublicas.status === 200 && sucursalesPublicas.data.length > 0);
+
+  const menuSlugInexistente = await peticion('/api/publico/negocio-falso/menu');
+  asegurar('13.3 Catálogo con slug inexistente responde 404 Not Found', menuSlugInexistente.status === 404);
+
   console.log('\n===============================================================');
   console.log(`  RESUMEN: ${pruebasPasadas} pasadas, ${pruebasFallidas} fallidas`);
   console.log('===============================================================\n');
