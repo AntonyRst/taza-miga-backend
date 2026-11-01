@@ -1,0 +1,5 @@
+### Variables globales
+@baseUrl = http://localhost:3001
+
+### 1. Comprobar salud del servidor API
+GET {{baseUrl}}/api/salud
