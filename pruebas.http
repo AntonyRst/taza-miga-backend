@@ -3,3 +3,57 @@
 
 ### 1. Comprobar salud del servidor API
 GET {{baseUrl}}/api/salud
+
+### 2. [HU-01] Login con credenciales válidas (200 OK)
+# @name loginDueno
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "correo": "dueno@tazamiga.com",
+  "password": "PasswordSeguro123"
+}
+
+### Guardar token obtenido de la respuesta
+@token = {{loginDueno.response.body.token}}
+
+### 3. [RN-07] Login con contraseña incorrecta (401 - Mensaje genérico)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "correo": "dueno@tazamiga.com",
+  "password": "PasswordIncorrecta"
+}
+
+### 4. [RN-07] Login con correo inexistente (401 - Debe dar EXACTAMENTE el mismo mensaje)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "correo": "noexiste@tazamiga.com",
+  "password": "PasswordCualquiera123"
+}
+
+### 5. [Validación Zod] Login con datos mal formados (400 Bad Request)
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "correo": "correo-no-valido",
+  "password": ""
+}
+
+### 6. [HU-02] Obtener perfil con token válido (200 OK)
+GET {{baseUrl}}/api/auth/perfil
+Authorization: Bearer {{token}}
+
+### 7. [RN-03] Intentar acceder sin token (401 No autorizado)
+GET {{baseUrl}}/api/auth/perfil
+
+### 8. [HU-02, RN-03] Probar acceso a ruta protegida de /admin con token de DUENO (200 OK)
+GET {{baseUrl}}/api/admin/prueba-acceso
+Authorization: Bearer {{token}}
+
+### 9. [RN-03] Probar acceso a ruta de administración sin token (401 No autorizado)
+GET {{baseUrl}}/api/admin/prueba-acceso

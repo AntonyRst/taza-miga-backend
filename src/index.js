@@ -1,7 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import authRoutes from './routes/authRoutes.js';
 import { manejarErrores } from './middlewares/manejarErrores.js';
+import { verificarToken } from './middlewares/verificarToken.js';
+import { permitirRoles } from './middlewares/permitirRoles.js';
 
 dotenv.config();
 
@@ -24,6 +27,14 @@ app.get('/api/salud', (req, res) => {
     mensaje: 'Servidor Taza & Miga API activo',
     fecha: new Date().toISOString()
   });
+});
+
+// Rutas de autenticación
+app.use('/api/auth', authRoutes);
+
+// Ruta protegida de prueba para verificar roles (RN-03, HU-02)
+app.get('/api/admin/prueba-acceso', verificarToken, permitirRoles('GERENTE', 'DUENO'), (req, res) => {
+  res.json({ mensaje: 'Acceso autorizado al panel de administración', usuario: req.usuario });
 });
 
 // Middleware global de manejo de errores
