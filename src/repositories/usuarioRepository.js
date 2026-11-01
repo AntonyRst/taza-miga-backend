@@ -36,7 +36,7 @@ export const usuarioRepository = {
   },
 
   /**
-   * Busca un usuario por su ID primario.
+   * Busca un usuario por su ID primario, incluyendo el hash de la contraseña.
    * @param {number} id
    * @returns {Promise<object|null>}
    */
@@ -51,6 +51,7 @@ export const usuarioRepository = {
         telefono,
         acceso_sistema AS accesoSistema,
         correo,
+        password_hash AS passwordHash,
         rol,
         debe_cambiar_password AS debeCambiarPassword,
         activo,
@@ -62,5 +63,22 @@ export const usuarioRepository = {
     );
 
     return filas.length > 0 ? filas[0] : null;
+  },
+
+  /**
+   * Actualiza la contraseña del usuario y retira la marca de cambio obligatorio (HU-03, RN-09).
+   * @param {number} id
+   * @param {string} nuevoHash
+   * @returns {Promise<boolean>}
+   */
+  async actualizarPassword(id, nuevoHash) {
+    const [resultado] = await pool.query(
+      `UPDATE usuarios
+       SET password_hash = ?, debe_cambiar_password = FALSE
+       WHERE id = ?`,
+      [nuevoHash, id]
+    );
+
+    return resultado.affectedRows > 0;
   }
 };

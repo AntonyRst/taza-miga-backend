@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { loginSchema } from '../schemas/authSchema.js';
+import { loginSchema, cambiarPasswordSchema } from '../schemas/authSchema.js';
 import { authService } from '../services/authService.js';
 import { verificarToken } from '../middlewares/verificarToken.js';
 
@@ -31,6 +31,25 @@ router.get('/perfil', verificarToken, async (req, res, next) => {
   try {
     const perfil = await authService.obtenerPerfil(req.usuario.id);
     res.status(200).json(perfil);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * PUT /api/auth/cambiar-password
+ * Permite al usuario cambiar su contraseña actual (HU-03, RN-07, RN-09).
+ */
+router.put('/cambiar-password', verificarToken, async (req, res, next) => {
+  try {
+    const datosValidados = cambiarPasswordSchema.parse(req.body);
+    const resultado = await authService.cambiarPassword(
+      req.usuario.id,
+      datosValidados.passwordActual,
+      datosValidados.passwordNueva
+    );
+
+    res.status(200).json(resultado);
   } catch (error) {
     next(error);
   }

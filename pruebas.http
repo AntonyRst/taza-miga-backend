@@ -57,3 +57,42 @@ Authorization: Bearer {{token}}
 
 ### 9. [RN-03] Probar acceso a ruta de administración sin token (401 No autorizado)
 GET {{baseUrl}}/api/admin/prueba-acceso
+
+### 10. [HU-03] Cambiar contraseña con datos válidos (200 OK)
+PUT {{baseUrl}}/api/auth/cambiar-password
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "passwordActual": "PasswordSeguro123",
+  "passwordNueva": "NuevaPassword456"
+}
+
+### 11. [HU-03] Intentar cambiar con contraseña actual errónea (400 Bad Request)
+PUT {{baseUrl}}/api/auth/cambiar-password
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "passwordActual": "PasswordErronea",
+  "passwordNueva": "NuevaPassword789"
+}
+
+### 12. [HU-03, RN-07] Intentar cambiar con contraseña nueva menor a 8 caracteres (400 Bad Request)
+PUT {{baseUrl}}/api/auth/cambiar-password
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "passwordActual": "NuevaPassword456",
+  "passwordNueva": "corta"
+}
+
+### 13. [HU-03, RN-03] Intentar cambiar contraseña sin token (401 No autorizado)
+PUT {{baseUrl}}/api/auth/cambiar-password
+Content-Type: application/json
+
+{
+  "passwordActual": "Cualquiera123",
+  "passwordNueva": "NuevaPassword456"
+}
