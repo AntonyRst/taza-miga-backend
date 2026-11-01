@@ -80,5 +80,35 @@ export const usuarioRepository = {
     );
 
     return resultado.affectedRows > 0;
+  },
+
+  /**
+   * Inserta un nuevo usuario en la base de datos.
+   * @param {object} usuario
+   * @returns {Promise<number>} ID del usuario creado
+   */
+  async crear(usuario) {
+    const [resultado] = await pool.query(
+      `INSERT INTO usuarios (
+        negocio_id, sucursal_id, nombre, cargo, telefono,
+        acceso_sistema, correo, password_hash, rol,
+        debe_cambiar_password, activo
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        usuario.negocioId,
+        usuario.sucursalId || null,
+        usuario.nombre,
+        usuario.cargo,
+        usuario.telefono,
+        usuario.accesoSistema !== undefined ? usuario.accesoSistema : true,
+        usuario.correo,
+        usuario.passwordHash,
+        usuario.rol || 'BARISTA',
+        usuario.debeCambiarPassword !== undefined ? usuario.debeCambiarPassword : false,
+        usuario.activo !== undefined ? usuario.activo : true
+      ]
+    );
+
+    return resultado.insertId;
   }
 };

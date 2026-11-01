@@ -1,10 +1,28 @@
+### ===================================================================
+### TAZA & MIGA - PRUEBAS DE API (REST CLIENT)
+### Entrega 1: Base y Seguridad
+### Reglas verificadas: RN-01, RN-02, RN-03, RN-07, RN-08 y RN-09
+### ===================================================================
+
 ### Variables globales
 @baseUrl = http://localhost:3001
 
-### 1. Comprobar salud del servidor API
+
+### ===================================================================
+### 1. COMPROBAR SALUD DEL SERVIDOR API
+### ===================================================================
+
+### 1.1 Comprobar salud del servidor API (200 OK)
 GET {{baseUrl}}/api/salud
 
-### 2. [HU-01] Login con credenciales válidas (200 OK)
+
+### ===================================================================
+### 2. RN-07: AUTENTICACIÓN SEGURA Y CONSTRASEÑAS
+### Las contraseñas se guardan con bcrypt, tienen mínimo 8 caracteres y nunca
+### aparecen en las respuestas. Si el login falla, el mensaje es idéntico.
+### ===================================================================
+
+### 2.1 [HU-01, RN-07] Login exitoso con credenciales de Dueño (200 OK)
 # @name loginDueno
 POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
@@ -14,10 +32,10 @@ Content-Type: application/json
   "password": "PasswordSeguro123"
 }
 
-### Guardar token obtenido de la respuesta
-@token = {{loginDueno.response.body.token}}
+### Guardar token del Dueño
+@tokenDueno = {{loginDueno.response.body.token}}
 
-### 3. [RN-07] Login con contraseña incorrecta (401 - Mensaje genérico)
+### 2.2 [RN-07] Login con contraseña incorrecta (401 - Mensaje genérico)
 POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
@@ -26,7 +44,7 @@ Content-Type: application/json
   "password": "PasswordIncorrecta"
 }
 
-### 4. [RN-07] Login con correo inexistente (401 - Debe dar EXACTAMENTE el mismo mensaje)
+### 2.3 [RN-07] Login con correo inexistente (401 - EXACTAMENTE el mismo mensaje genérico)
 POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
@@ -35,7 +53,7 @@ Content-Type: application/json
   "password": "PasswordCualquiera123"
 }
 
-### 5. [Validación Zod] Login con datos mal formados (400 Bad Request)
+### 2.4 [Validación Zod] Login con datos mal formados (400 Bad Request)
 POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
 
@@ -44,55 +62,200 @@ Content-Type: application/json
   "password": ""
 }
 
-### 6. [HU-02] Obtener perfil con token válido (200 OK)
-GET {{baseUrl}}/api/auth/perfil
-Authorization: Bearer {{token}}
 
-### 7. [RN-03] Intentar acceder sin token (401 No autorizado)
-GET {{baseUrl}}/api/auth/perfil
+### ===================================================================
+### 3. RN-08: USUARIOS INACTIVOS
+### Un usuario inactivo no puede iniciar sesión (401 con mensaje genérico).
+### ===================================================================
 
-### 8. [HU-02, RN-03] Probar acceso a ruta protegida de /admin con token de DUENO (200 OK)
-GET {{baseUrl}}/api/admin/prueba-acceso
-Authorization: Bearer {{token}}
-
-### 9. [RN-03] Probar acceso a ruta de administración sin token (401 No autorizado)
-GET {{baseUrl}}/api/admin/prueba-acceso
-
-### 10. [HU-03] Cambiar contraseña con datos válidos (200 OK)
-PUT {{baseUrl}}/api/auth/cambiar-password
+### 3.1 [RN-08] Login con usuario inactivo (401 Unauthorized - Mismo mensaje)
+POST {{baseUrl}}/api/auth/login
 Content-Type: application/json
-Authorization: Bearer {{token}}
 
 {
-  "passwordActual": "PasswordSeguro123",
-  "passwordNueva": "NuevaPassword456"
+  "correo": "inactivo@tazamiga.com",
+  "password": "Inactivo123"
 }
 
-### 11. [HU-03] Intentar cambiar con contraseña actual errónea (400 Bad Request)
+
+### ===================================================================
+### 4. RN-03: AUTORIZACIÓN POR TOKEN Y CONTROL DE ROLES
+### El rol, negocio y sucursal salen del token. Cada ruta protegida exige
+### un rol permitido (401 sin token, 403 con rol no permitido).
+### ===================================================================
+
+### 4.1 [HU-02, RN-03] Obtener perfil propio con token válido de Dueño (200 OK)
+GET {{baseUrl}}/api/auth/perfil
+Authorization: Bearer {{tokenDueno}}
+
+### 4.2 [RN-03] Intentar consultar perfil sin token (401 No autorizado)
+GET {{baseUrl}}/api/auth/perfil
+
+### 4.3 [HU-02, RN-03] Acceder a ruta de administración con rol DUENO (200 OK)
+GET {{baseUrl}}/api/admin/prueba-acceso
+Authorization: Bearer {{tokenDueno}}
+
+### 4.4 [RN-03] Intentar acceder a administración sin token (401 No autorizado)
+GET {{baseUrl}}/api/admin/prueba-acceso
+
+### 4.5 [HU-01] Login exitoso como BARISTA (200 OK)
+# @name loginBarista
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "correo": "barista@tazamiga.com",
+  "password": "Barista123"
+}
+
+### Guardar token del Barista
+@tokenBarista = {{loginBarista.response.body.token}}
+
+### 4.6 [RN-03] Barista intenta acceder a ruta de administración (403 Forbidden)
+GET {{baseUrl}}/api/admin/prueba-acceso
+Authorization: Bearer {{tokenBarista}}
+
+
+### ===================================================================
+### 5. RN-09: CONTRASEÑA TEMPORAL OBLIGATORIA
+### Mientras `debe_cambiar_password` esté activo, el usuario solo puede
+### llamar a cambiar contraseña. Cualquier otra ruta responde 403.
+### ===================================================================
+
+### 5.1 [HU-01, RN-09] Login con usuario que tiene contraseña temporal (200 OK)
+# @name loginTemporal
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "correo": "temporal@tazamiga.com",
+  "password": "Temporal123"
+}
+
+### Guardar token temporal
+@tokenTemporal = {{loginTemporal.response.body.token}}
+
+### 5.2 [RN-09] Intentar consultar perfil con contraseña temporal activa (403 Forbidden)
+GET {{baseUrl}}/api/auth/perfil
+Authorization: Bearer {{tokenTemporal}}
+
+### 5.3 [RN-09] Intentar acceder a administración con contraseña temporal activa (403 Forbidden)
+GET {{baseUrl}}/api/admin/prueba-acceso
+Authorization: Bearer {{tokenTemporal}}
+
+### 5.4 [HU-03, RN-09] Cambiar contraseña obligatoria con el token temporal (200 OK)
+# @name cambioTemporal
 PUT {{baseUrl}}/api/auth/cambiar-password
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{tokenTemporal}}
+
+{
+  "passwordActual": "Temporal123",
+  "passwordNueva": "NuevaClaveTemporal456"
+}
+
+### Guardar token renovado tras el cambio
+@tokenTemporalRenovado = {{cambioTemporal.response.body.token}}
+
+### 5.5 [RN-09] Consultar perfil con el nuevo token tras cambiar la clave (200 OK)
+GET {{baseUrl}}/api/auth/perfil
+Authorization: Bearer {{tokenTemporalRenovado}}
+
+
+### ===================================================================
+### 6. HU-03: VALIDACIONES ADICIONALES AL CAMBIAR CONTRASEÑA
+### ===================================================================
+
+### 6.1 [HU-03] Intentar cambiar con contraseña actual errónea (400 Bad Request)
+PUT {{baseUrl}}/api/auth/cambiar-password
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
 
 {
   "passwordActual": "PasswordErronea",
   "passwordNueva": "NuevaPassword789"
 }
 
-### 12. [HU-03, RN-07] Intentar cambiar con contraseña nueva menor a 8 caracteres (400 Bad Request)
+### 6.2 [HU-03, RN-07] Intentar cambiar con contraseña nueva menor a 8 caracteres (400 Bad Request)
 PUT {{baseUrl}}/api/auth/cambiar-password
 Content-Type: application/json
-Authorization: Bearer {{token}}
+Authorization: Bearer {{tokenDueno}}
 
 {
-  "passwordActual": "NuevaPassword456",
+  "passwordActual": "PasswordSeguro123",
   "passwordNueva": "corta"
 }
 
-### 13. [HU-03, RN-03] Intentar cambiar contraseña sin token (401 No autorizado)
+### 6.3 [HU-03, RN-03] Intentar cambiar contraseña sin token (401 No autorizado)
 PUT {{baseUrl}}/api/auth/cambiar-password
 Content-Type: application/json
 
 {
   "passwordActual": "Cualquiera123",
   "passwordNueva": "NuevaPassword456"
+}
+
+
+### ===================================================================
+### 7. RN-01: AISLAMIENTO MULTINEGOCIO
+### Un negocio solo puede ver y modificar sus propios datos.
+### Con el token de otro negocio, pedir un registro ajeno responde 404.
+### ===================================================================
+
+### 7.1 Login como Dueño de otro negocio (Café París - Negocio 2) (200 OK)
+# @name loginNegocio2
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "correo": "dueno@cafeparis.com",
+  "password": "ParisSeguro123"
+}
+
+### Guardar token de Negocio 2
+@tokenNegocio2 = {{loginNegocio2.response.body.token}}
+
+### 7.2 [RN-01] Dueño de Negocio 2 pide sucursal 1 (perteneciente a Negocio 1) (404 Not Found)
+GET {{baseUrl}}/api/admin/sucursales/1
+Authorization: Bearer {{tokenNegocio2}}
+
+### 7.3 [RN-01] Dueño de Negocio 1 pide su propia sucursal 1 (200 OK)
+GET {{baseUrl}}/api/admin/sucursales/1
+Authorization: Bearer {{tokenDueno}}
+
+
+### ===================================================================
+### 8. RN-02: UNICIDAD DE CORREO ELECTRÓNICO
+### El correo de un usuario es único en todo el sistema.
+### Intentar registrar dos usuarios con el mismo correo responde 409.
+### ===================================================================
+
+### 8.1 [RN-02] Intentar registrar usuario con correo duplicado (409 Conflict)
+POST {{baseUrl}}/api/admin/usuarios
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "nombre": "Barista Duplicado",
+  "cargo": "Barista",
+  "telefono": "7888-9999",
+  "correo": "barista@tazamiga.com",
+  "password": "PasswordValida123",
+  "rol": "BARISTA",
+  "sucursalId": 1
+}
+
+### 8.2 [RN-02] Registrar usuario con correo único válido (201 Created)
+POST {{baseUrl}}/api/admin/usuarios
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "nombre": "Nuevo Barista Turno Tarde",
+  "cargo": "Barista",
+  "telefono": "7444-5555",
+  "correo": "baristatarde@tazamiga.com",
+  "password": "PasswordValida123",
+  "rol": "BARISTA",
+  "sucursalId": 1
 }
