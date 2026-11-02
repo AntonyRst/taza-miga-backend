@@ -396,6 +396,206 @@ async function correrPruebas() {
   const menuSlugInexistente = await peticion('/api/publico/negocio-falso/menu');
   asegurar('13.3 Catálogo con slug inexistente responde 404 Not Found', menuSlugInexistente.status === 404);
 
+  // 14. Creación de pedidos (HU-11, RN-13 a RN-19, RN-23)
+  console.log('\n--- 14. Creación de pedidos (HU-11, RN-13 a RN-19, RN-23) ---');
+  const pedidoBarra = await peticion('/api/publico/taza-miga/ordenes', {
+    method: 'POST',
+    body: JSON.stringify({
+      sucursalId: 1,
+      nombreCliente: 'Ana Torres',
+      tipoEntrega: 'MESA',
+      numeroMesa: 2,
+      metodoPago: 'BARRA',
+      lineas: [
+        {
+          productoId: 1,
+          cantidad: 2,
+          notasPersonalizacion: 'Sin azúcar añadida',
+          opcionesIds: [1]
+        }
+      ]
+    })
+  });
+  asegurar(
+    '14.1 Crear pedido en MESA con BARRA 201 Created (SIN_PAGAR, RECIBIDO)',
+    pedidoBarra.status === 201 &&
+    pedidoBarra.data.estado === 'RECIBIDO' &&
+    pedidoBarra.data.estadoPago === 'SIN_PAGAR' &&
+    Boolean(pedidoBarra.data.codigoSeguimiento)
+  );
+  const orden1 = pedidoBarra.data;
+
+  const pedidoTarjeta = await peticion('/api/publico/taza-miga/ordenes', {
+    method: 'POST',
+    body: JSON.stringify({
+      sucursalId: 1,
+      nombreCliente: 'Roberto Méndez',
+      tipoEntrega: 'LLEVAR',
+      metodoPago: 'TARJETA_DEMO',
+      lineas: [
+        {
+          productoId: 1,
+          cantidad: 1,
+          opcionesIds: [3, 5]
+        }
+      ]
+    })
+  });
+  asegurar(
+    '14.2 Crear pedido para LLEVAR con TARJETA_DEMO 201 Created (PAGADO, RN-23)',
+    pedidoTarjeta.status === 201 &&
+    pedidoTarjeta.data.estadoPago === 'PAGADO'
+  );
+  const orden2 = pedidoTarjeta.data;
+
+  asegurar(
+    '14.3 Números consecutivos por sucursal (#1 y #2) asignados por servidor (RN-19)',
+    orden2.numeroOrden === orden1.numeroOrden + 1
+  );
+
+  const pedidoTotalManipulado = await peticion('/api/publico/taza-miga/ordenes', {
+    method: 'POST',
+    body: JSON.stringify({
+      sucursalId: 1,
+      nombreCliente: 'Cliente Tramposo',
+      tipoEntrega: 'MESA',
+      numeroMesa: 1,
+      metodoPago: 'BARRA',
+      total: 0.01,
+      lineas: [
+        {
+          productoId: 1,
+          cantidad: 1,
+          precioUnitario: 0.01,
+          opcionesIds: [1]
+        }
+      ]
+    })
+  });
+  asegurar(
+    '14.4 El servidor recalcula el total real ignorando montos manipulados (RN-15)',
+    pedidoTotalManipulado.status === 201 &&
+    pedidoTotalManipulado.data.total > 1.00
+  );
+
+  const pedidoMesaInvalida = await peticion('/api/publico/taza-miga/ordenes', {
+    method: 'POST',
+    body: JSON.stringify({
+      sucursalId: 1,
+      nombreCliente: 'Mesa 99',
+      tipoEntrega: 'MESA',
+      numeroMesa: 99,
+      metodoPago: 'BARRA',
+      lineas: [{ productoId: 1, cantidad: 1, opcionesIds: [1] }]
+    })
+  });
+  asegurar('14.5 Mesa fuera de rango de sucursal responde 400 Bad Request (RN-17)', pedidoMesaInvalida.status === 400);
+
+  const pedidoHoraPasada = await peticion('/api/publico/taza-miga/ordenes', {
+    method: 'POST',
+    body: JSON.stringify({
+      sucursalId: 1,
+      nombreCliente: 'Hora Pasada',
+      tipoEntrega: 'LLEVAR',
+      horaRecogida: '2020-01-01T10:00:00Z',
+      metodoPago: 'BARRA',
+      lineas: [{ productoId: 1, cantidad: 1, opcionesIds: [1] }]
+    })
+  });
+  asegurar('14.6 Hora de recogida en el pasado responde 400 Bad Request (RN-17)', pedidoHoraPasada.status === 400);
+
+  const pedidoSinLineas = await peticion('/api/publico/taza-miga/ordenes', {
+    method: 'POST',
+    body: JSON.stringify({
+      sucursalId: 1,
+      nombreCliente: 'Sin Líneas',
+      tipoEntrega: 'MESA',
+      numeroMesa: 1,
+      metodoPago: 'BARRA',
+      lineas: []
+    })
+  });
+  asegurar('14.7 Pedido sin líneas responde 400 Bad Request (RN-18)', pedidoSinLineas.status === 400);
+
+  const pedidoMuchosItems = await peticion('/api/publico/taza-miga/ordenes', {
+    method: 'POST',
+    body: JSON.stringify({
+      sucursalId: 1,
+      nombreCliente: 'Demasiadas Unidades',
+      tipoEntrega: 'MESA',
+      numeroMesa: 1,
+      metodoPago: 'BARRA',
+      lineas: [{ productoId: 1, cantidad: 21, opcionesIds: [1] }]
+    })
+  });
+  asegurar('14.8 Línea con más de 20 unidades responde 400 Bad Request (RN-18)', pedidoMuchosItems.status === 400);
+
+  const pedidoNombreCorto = await peticion('/api/publico/taza-miga/ordenes', {
+    method: 'POST',
+    body: JSON.stringify({
+      sucursalId: 1,
+      nombreCliente: 'A',
+      tipoEntrega: 'MESA',
+      numeroMesa: 1,
+      metodoPago: 'BARRA',
+      lineas: [{ productoId: 1, cantidad: 1, opcionesIds: [1] }]
+    })
+  });
+  asegurar('14.9 Nombre cliente menor a 2 caracteres responde 400 Bad Request (RN-18)', pedidoNombreCorto.status === 400);
+
+  const pedidoSinObligatorio = await peticion('/api/publico/taza-miga/ordenes', {
+    method: 'POST',
+    body: JSON.stringify({
+      sucursalId: 1,
+      nombreCliente: 'Sin Opción Obligatoria',
+      tipoEntrega: 'MESA',
+      numeroMesa: 1,
+      metodoPago: 'BARRA',
+      lineas: [{ productoId: 1, cantidad: 1, opcionesIds: [] }]
+    })
+  });
+  asegurar('14.10 Falta de opción en grupo obligatorio responde 400 Bad Request (RN-13)', pedidoSinObligatorio.status === 400);
+
+  // 15. Seguimiento y búsqueda (HU-12, RN-20)
+  console.log('\n--- 15. Seguimiento y búsqueda de pedidos (HU-12, RN-20) ---');
+  const seguimientoOk = await peticion(`/api/publico/ordenes/seguimiento/${orden1.codigoSeguimiento}`);
+  asegurar(
+    '15.1 Consulta de seguimiento con código válido 200 OK (copia de precios y opciones RN-16)',
+    seguimientoOk.status === 200 &&
+    seguimientoOk.data.numeroOrden === orden1.numeroOrden &&
+    seguimientoOk.data.detalles.length > 0 &&
+    Boolean(seguimientoOk.data.detalles[0].nombreProducto)
+  );
+
+  const seguimientoFalso = await peticion('/api/publico/ordenes/seguimiento/00000000-0000-0000-0000-000000000000');
+  asegurar('15.2 Consulta con código inexistente responde 404 Not Found (RN-20)', seguimientoFalso.status === 404);
+
+  const busquedaOk = await peticion('/api/publico/taza-miga/ordenes/buscar', {
+    method: 'POST',
+    body: JSON.stringify({
+      numeroOrden: orden1.numeroOrden,
+      nombreCliente: 'Ana Torres'
+    })
+  });
+  asegurar(
+    '15.3 Búsqueda manual con número y nombre correctos 200 OK (RN-20)',
+    busquedaOk.status === 200 &&
+    busquedaOk.data.codigoSeguimiento === orden1.codigoSeguimiento
+  );
+
+  const busquedaFallida = await peticion('/api/publico/taza-miga/ordenes/buscar', {
+    method: 'POST',
+    body: JSON.stringify({
+      numeroOrden: orden1.numeroOrden,
+      nombreCliente: 'Nombre Incorrecto'
+    })
+  });
+  asegurar(
+    '15.4 Búsqueda manual con nombre incorrecto responde 404 "No encontramos ese pedido" sin pistas (RN-20)',
+    busquedaFallida.status === 404 &&
+    busquedaFallida.data.error === 'No encontramos ese pedido'
+  );
+
   console.log('\n===============================================================');
   console.log(`  RESUMEN: ${pruebasPasadas} pasadas, ${pruebasFallidas} fallidas`);
   console.log('===============================================================\n');

@@ -505,3 +505,215 @@ GET {{baseUrl}}/api/publico/taza-miga/sucursales
 
 ### 13.3 Consultar catálogo con slug inexistente (404 Not Found)
 GET {{baseUrl}}/api/publico/negocio-inexistente/menu
+
+
+### ===================================================================
+### 14. CREACIÓN DE PEDIDOS (HU-11, RN-13, RN-14, RN-15, RN-16, RN-17, RN-18, RN-19, RN-23)
+### ===================================================================
+
+### 14.1 [HU-11, RN-18, RN-23] Crear pedido en mesa con método BARRA (201 Created -> SIN_PAGAR)
+# @name crearPedidoBarra
+POST {{baseUrl}}/api/publico/taza-miga/ordenes
+Content-Type: application/json
+
+{
+  "sucursalId": 1,
+  "nombreCliente": "Ana Torres",
+  "tipoEntrega": "MESA",
+  "numeroMesa": 2,
+  "metodoPago": "BARRA",
+  "lineas": [
+    {
+      "productoId": 1,
+      "cantidad": 2,
+      "notasPersonalizacion": "Sin azúcar añadida",
+      "opcionesIds": [1]
+    }
+  ]
+}
+
+### Guardar código de seguimiento del pedido creado
+@codigoSeguimiento1 = {{crearPedidoBarra.response.body.codigoSeguimiento}}
+@numeroOrden1 = {{crearPedidoBarra.response.body.numeroOrden}}
+
+### 14.2 [HU-11, RN-23] Crear pedido para LLEVAR con TARJETA_DEMO (201 Created -> PAGADO)
+# @name crearPedidoTarjeta
+POST {{baseUrl}}/api/publico/taza-miga/ordenes
+Content-Type: application/json
+
+{
+  "sucursalId": 1,
+  "nombreCliente": "Roberto Méndez",
+  "tipoEntrega": "LLEVAR",
+  "metodoPago": "TARJETA_DEMO",
+  "lineas": [
+    {
+      "productoId": 1,
+      "cantidad": 1,
+      "opcionesIds": [3, 5]
+    }
+  ]
+}
+
+### Guardar código del segundo pedido
+@codigoSeguimiento2 = {{crearPedidoTarjeta.response.body.codigoSeguimiento}}
+@numeroOrden2 = {{crearPedidoTarjeta.response.body.numeroOrden}}
+
+### 14.3 [RN-15] Enviar total manipulado (0.01) y verificar que el servidor calcula el total real
+POST {{baseUrl}}/api/publico/taza-miga/ordenes
+Content-Type: application/json
+
+{
+  "sucursalId": 1,
+  "nombreCliente": "Cliente Tramposo",
+  "tipoEntrega": "MESA",
+  "numeroMesa": 1,
+  "metodoPago": "BARRA",
+  "total": 0.01,
+  "lineas": [
+    {
+      "productoId": 1,
+      "cantidad": 1,
+      "precioUnitario": 0.01,
+      "opcionesIds": [1]
+    }
+  ]
+}
+
+### 14.4 [RN-17] Pedido en mesa con número de mesa fuera de rango (400 Bad Request)
+POST {{baseUrl}}/api/publico/taza-miga/ordenes
+Content-Type: application/json
+
+{
+  "sucursalId": 1,
+  "nombreCliente": "Carlos Mesa 99",
+  "tipoEntrega": "MESA",
+  "numeroMesa": 99,
+  "metodoPago": "BARRA",
+  "lineas": [
+    {
+      "productoId": 1,
+      "cantidad": 1,
+      "opcionesIds": [1]
+    }
+  ]
+}
+
+### 14.5 [RN-17] Pedido para llevar con hora de recogida en el pasado (400 Bad Request)
+POST {{baseUrl}}/api/publico/taza-miga/ordenes
+Content-Type: application/json
+
+{
+  "sucursalId": 1,
+  "nombreCliente": "Hora Pasada",
+  "tipoEntrega": "LLEVAR",
+  "horaRecogida": "2020-01-01T10:00:00Z",
+  "metodoPago": "BARRA",
+  "lineas": [
+    {
+      "productoId": 1,
+      "cantidad": 1,
+      "opcionesIds": [1]
+    }
+  ]
+}
+
+### 14.6 [RN-18] Pedido sin líneas de producto (400 Bad Request)
+POST {{baseUrl}}/api/publico/taza-miga/ordenes
+Content-Type: application/json
+
+{
+  "sucursalId": 1,
+  "nombreCliente": "Sin Productos",
+  "tipoEntrega": "MESA",
+  "numeroMesa": 1,
+  "metodoPago": "BARRA",
+  "lineas": []
+}
+
+### 14.7 [RN-18] Línea de producto con más de 20 unidades (400 Bad Request)
+POST {{baseUrl}}/api/publico/taza-miga/ordenes
+Content-Type: application/json
+
+{
+  "sucursalId": 1,
+  "nombreCliente": "Demasiadas Unidades",
+  "tipoEntrega": "MESA",
+  "numeroMesa": 1,
+  "metodoPago": "BARRA",
+  "lineas": [
+    {
+      "productoId": 1,
+      "cantidad": 21,
+      "opcionesIds": [1]
+    }
+  ]
+}
+
+### 14.8 [RN-18] Nombre de cliente con menos de 2 caracteres (400 Bad Request)
+POST {{baseUrl}}/api/publico/taza-miga/ordenes
+Content-Type: application/json
+
+{
+  "sucursalId": 1,
+  "nombreCliente": "A",
+  "tipoEntrega": "MESA",
+  "numeroMesa": 1,
+  "metodoPago": "BARRA",
+  "lineas": [
+    {
+      "productoId": 1,
+      "cantidad": 1,
+      "opcionesIds": [1]
+    }
+  ]
+}
+
+### 14.9 [RN-13] Pedido faltando opción obligatoria (400 Bad Request)
+POST {{baseUrl}}/api/publico/taza-miga/ordenes
+Content-Type: application/json
+
+{
+  "sucursalId": 1,
+  "nombreCliente": "Sin Leche",
+  "tipoEntrega": "MESA",
+  "numeroMesa": 1,
+  "metodoPago": "BARRA",
+  "lineas": [
+    {
+      "productoId": 1,
+      "cantidad": 1,
+      "opcionesIds": []
+    }
+  ]
+}
+
+
+### ===================================================================
+### 15. SEGUIMIENTO Y BÚSQUEDA DE PEDIDOS (HU-12, RN-20)
+### ===================================================================
+
+### 15.1 [HU-12, RN-20] Consultar seguimiento de pedido por código (200 OK)
+GET {{baseUrl}}/api/publico/ordenes/seguimiento/{{codigoSeguimiento1}}
+
+### 15.2 [RN-20] Consultar seguimiento con código inexistente (404 Not Found)
+GET {{baseUrl}}/api/publico/ordenes/seguimiento/00000000-0000-0000-0000-000000000000
+
+### 15.3 [HU-12, RN-20] Búsqueda manual de pedido con número y nombre correctos (200 OK)
+POST {{baseUrl}}/api/publico/taza-miga/ordenes/buscar
+Content-Type: application/json
+
+{
+  "numeroOrden": 1,
+  "nombreCliente": "Ana Torres"
+}
+
+### 15.4 [RN-20] Búsqueda manual con número correcto pero nombre incorrecto (404 Not Found)
+POST {{baseUrl}}/api/publico/taza-miga/ordenes/buscar
+Content-Type: application/json
+
+{
+  "numeroOrden": 1,
+  "nombreCliente": "Nombre Equivocado"
+}
+
