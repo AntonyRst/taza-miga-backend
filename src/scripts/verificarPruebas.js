@@ -990,6 +990,111 @@ async function correrPruebas() {
     baristaAccediendoPersonal.status === 403
   );
 
+  // 18. Restablecer la contraseña de un compañero (HU-19, RN-07, RN-09, RN-27)
+  console.log('\n--- 18. Restablecer la contraseña de un compañero (HU-19, RN-07, RN-09, RN-27) ---');
+
+  // 18.1 Gerente asigna contraseña temporal a Barista de su sucursal (200 OK)
+  const resetBaristaOk = await peticion('/api/admin/personal/3/reset-password', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenGerente}` },
+    body: JSON.stringify({ passwordTemporal: 'NuevaClaveTemporal123' })
+  });
+  asegurar(
+    '18.1 Gerente asigna contraseña temporal a Barista de su sucursal 200 OK (HU-19, RN-09)',
+    resetBaristaOk.status === 200 && resetBaristaOk.data.debeCambiarPassword === true
+  );
+
+  // 18.2 Barista inicia sesión con clave temporal recibiendo debe_cambiar_password = true
+  const loginBaristaTemporal = await peticion('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ correo: 'barista@tazamiga.com', password: 'NuevaClaveTemporal123' })
+  });
+  const tokenBaristaTemporal = loginBaristaTemporal.data?.token;
+  asegurar(
+    '18.2 Barista inicia sesión con contraseña temporal 200 OK y marca de cambio forzado (RN-09)',
+    loginBaristaTemporal.status === 200 &&
+    loginBaristaTemporal.data.usuario.debeCambiarPassword === true &&
+    Boolean(tokenBaristaTemporal)
+  );
+
+  // 18.3 Token temporal tiene acceso bloqueado a KDS
+  const kdsBloqueadoTemporal = await peticion('/api/kds/pedidos', {
+    headers: { Authorization: `Bearer ${tokenBaristaTemporal}` }
+  });
+  asegurar(
+    '18.3 Token temporal tiene acceso bloqueado a operaciones 403 Forbidden (RN-09)',
+    kdsBloqueadoTemporal.status === 403
+  );
+
+  // 18.4 Gerente intenta restablecer a otro Gerente responde 403 Forbidden (RN-09)
+  const gerenteResetGerente = await peticion(`/api/admin/personal/${loginGerente.data?.usuario?.id || 126}/reset-password`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenGerente}` },
+    body: JSON.stringify({ passwordTemporal: 'OtraTemporal123' })
+  });
+  asegurar(
+    '18.4 Gerente intentando restablecer a otro Gerente responde 403 Forbidden (RN-09)',
+    gerenteResetGerente.status === 403
+  );
+
+  // 18.5 Nadie puede restablecer la contraseña de un Dueño responde 403 Forbidden (RN-09)
+  const resetDuenoProhibido = await peticion('/api/admin/personal/2/reset-password', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({ passwordTemporal: 'DuenoTemporal123' })
+  });
+  asegurar(
+    '18.5 Nadie puede restablecer la contraseña de un Dueño responde 403 Forbidden (RN-09)',
+    resetDuenoProhibido.status === 403
+  );
+
+  // 18.6 Contraseña temporal menor a 8 caracteres responde 400 Bad Request (RN-07)
+  const claveTemporalCorta = await peticion('/api/admin/personal/3/reset-password', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenGerente}` },
+    body: JSON.stringify({ passwordTemporal: '123' })
+  });
+  asegurar(
+    '18.6 Contraseña temporal menor a 8 caracteres responde 400 Bad Request (RN-07)',
+    claveTemporalCorta.status === 400
+  );
+
+  // 18.7 Restablecer contraseña a personal sin acceso al sistema responde 400 Bad Request
+  const resetSinAcceso = await peticion(`/api/admin/personal/${idEmpleadoSinAcceso}/reset-password`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({ passwordTemporal: 'SinAccesoClave123' })
+  });
+  asegurar(
+    '18.7 Restablecer clave a personal sin acceso al sistema responde 400 Bad Request',
+    resetSinAcceso.status === 400
+  );
+
+  // 18.8 Barista intentando restablecer contraseña responde 403 Forbidden (RN-03)
+  const baristaResetAtaque = await peticion('/api/admin/personal/3/reset-password', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenBarista}` },
+    body: JSON.stringify({ passwordTemporal: 'AtaqueBarista123' })
+  });
+  asegurar(
+    '18.8 Barista intentando restablecer contraseña de compañero responde 403 Forbidden (RN-03)',
+    baristaResetAtaque.status === 403
+  );
+
+  // 18.9 Barista cambia su contraseña temporal restaurando Barista123 (200 OK)
+  const cambioExitoso = await peticion('/api/auth/cambiar-password', {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${tokenBaristaTemporal}` },
+    body: JSON.stringify({
+      passwordActual: 'NuevaClaveTemporal123',
+      passwordNueva: 'Barista123'
+    })
+  });
+  asegurar(
+    '18.9 Barista completa cambio obligatorio restaurando su contraseña 200 OK (HU-03, RN-09)',
+    cambioExitoso.status === 200 && Boolean(cambioExitoso.data.token)
+  );
+
   console.log('\n===============================================================');
   console.log(`  RESUMEN: ${pruebasPasadas} pasadas, ${pruebasFallidas} fallidas`);
   console.log('===============================================================\n');

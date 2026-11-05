@@ -190,7 +190,16 @@ export const personalService = {
       throw new ErrorApp('Empleado no encontrado', 404);
     }
 
-    // RN-09: El gerente restablece a un barista; el dueño a un gerente o barista
+    if (!empleado.accesoSistema) {
+      throw new ErrorApp('El empleado no tiene acceso al sistema', 400);
+    }
+
+    // RN-09: Nadie restablece la del dueño por este mecanismo
+    if (empleado.rol === 'DUENO') {
+      throw new ErrorApp('No se puede restablecer la contraseña de un dueño mediante este mecanismo (RN-09)', 403);
+    }
+
+    // RN-09: El gerente restablece a un barista de su sucursal; el dueño a un gerente o barista
     if (usuario.rol === 'GERENTE') {
       if (empleado.rol !== 'BARISTA' || empleado.sucursalId !== usuario.sucursal_id) {
         throw new ErrorApp('Un gerente solo puede restablecer contraseñas de baristas de su sucursal (RN-09)', 403);

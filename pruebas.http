@@ -1039,4 +1039,93 @@ GET {{baseUrl}}/api/admin/personal
 Authorization: Bearer {{tokenBarista}}
 
 
+### ===================================================================
+### 18. HU-19: RESTABLECER LA CONTRASEÑA DE UN COMPAÑERO
+### Reglas verificadas: RN-07, RN-09 y RN-27
+### ===================================================================
+
+### 18.1 [HU-19, RN-09] Gerente asigna contraseña temporal a Barista de su sucursal (200 OK)
+# @name resetPasswordBarista
+POST {{baseUrl}}/api/admin/personal/3/reset-password
+Content-Type: application/json
+Authorization: Bearer {{tokenGerente}}
+
+{
+  "passwordTemporal": "NuevaClaveTemporal123"
+}
+
+### 18.2 [RN-09] El Barista inicia sesión con la nueva contraseña temporal (200 OK, debe_cambiar_password = true)
+# @name loginBaristaTemporal
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "correo": "barista@tazamiga.com",
+  "password": "NuevaClaveTemporal123"
+}
+
+### Guardar token temporal del Barista
+@tokenBaristaTemporal = {{loginBaristaTemporal.response.body.token}}
+
+### 18.3 [RN-09] El token con marca temporal no puede acceder al panel KDS (403 Forbidden)
+GET {{baseUrl}}/api/kds/pedidos
+Authorization: Bearer {{tokenBaristaTemporal}}
+
+### 18.4 [RN-09] Gerente intenta restablecer contraseña de otro Gerente (403 Forbidden)
+POST {{baseUrl}}/api/admin/personal/126/reset-password
+Content-Type: application/json
+Authorization: Bearer {{tokenGerente}}
+
+{
+  "passwordTemporal": "OtraTemporal123"
+}
+
+### 18.5 [RN-09] Nadie puede restablecer la contraseña de un Dueño (403 Forbidden)
+POST {{baseUrl}}/api/admin/personal/2/reset-password
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "passwordTemporal": "DuenoTemporal123"
+}
+
+### 18.6 [RN-07] Intentar asignar contraseña temporal menor a 8 caracteres (400 Bad Request)
+POST {{baseUrl}}/api/admin/personal/3/reset-password
+Content-Type: application/json
+Authorization: Bearer {{tokenGerente}}
+
+{
+  "passwordTemporal": "123"
+}
+
+### 18.7 Intentar restablecer contraseña a empleado sin acceso al sistema (400 Bad Request)
+POST {{baseUrl}}/api/admin/personal/{{idEmpleadoSinAcceso}}/reset-password
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "passwordTemporal": "SinAccesoClave123"
+}
+
+### 18.8 [RN-03] Barista intenta restablecer contraseña de un compañero (403 Forbidden)
+POST {{baseUrl}}/api/admin/personal/3/reset-password
+Content-Type: application/json
+Authorization: Bearer {{tokenBarista}}
+
+{
+  "passwordTemporal": "AtaqueBarista123"
+}
+
+### 18.9 [HU-03, RN-09] El Barista completa el cambio obligatorio de contraseña restaurando Barista123 (200 OK)
+PUT {{baseUrl}}/api/auth/cambiar-password
+Content-Type: application/json
+Authorization: Bearer {{tokenBaristaTemporal}}
+
+{
+  "passwordActual": "NuevaClaveTemporal123",
+  "passwordNueva": "Barista123"
+}
+
+
+
 
