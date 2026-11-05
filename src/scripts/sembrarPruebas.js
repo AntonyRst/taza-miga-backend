@@ -52,6 +52,7 @@ async function sembrar() {
 
     // Hashes para contraseñas de prueba
     const hashDueno = await bcrypt.hash('PasswordSeguro123', 10);
+    const hashGerente = await bcrypt.hash('Gerente123', 10);
     const hashBarista = await bcrypt.hash('Barista123', 10);
     const hashInactivo = await bcrypt.hash('Inactivo123', 10);
     const hashTemporal = await bcrypt.hash('Temporal123', 10);
@@ -64,6 +65,13 @@ async function sembrar() {
       VALUES (?, NULL, 'Dueño Principal', 'Dueño', '7000-0001', TRUE, 'dueno@tazamiga.com', ?, 'DUENO', FALSE, TRUE)
       ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), activo = TRUE, debe_cambiar_password = FALSE
     `, [negocio1Id, hashDueno]);
+
+    // Gerente de Taza & Miga (RN-04, RN-06)
+    await conexion.query(`
+      INSERT INTO usuarios (negocio_id, sucursal_id, nombre, cargo, telefono, acceso_sistema, correo, password_hash, rol, debe_cambiar_password, activo)
+      VALUES (?, 1, 'Laura Gerente', 'Gerente', '7000-0010', TRUE, 'gerente@tazamiga.com', ?, 'GERENTE', FALSE, TRUE)
+      ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), rol = 'GERENTE', activo = TRUE, debe_cambiar_password = FALSE
+    `, [negocio1Id, hashGerente]);
 
     // Barista de Taza & Miga (RN-03)
     await conexion.query(`

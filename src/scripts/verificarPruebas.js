@@ -788,6 +788,208 @@ async function correrPruebas() {
   });
   asegurar('16.19 Barista de otra sucursal no puede modificar pedido ajeno 404 (RN-04)', ataqueSucursal.status === 404);
 
+  // 17. Administración del personal (HU-18, RN-02, RN-04, RN-06, RN-07, RN-08, RN-10, RN-26, RN-27)
+  console.log('\n--- 17. Administración del personal (HU-18, RN-02, RN-04, RN-06, RN-07, RN-08, RN-10, RN-26, RN-27) ---');
+
+  const loginGerente = await peticion('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ correo: 'gerente@tazamiga.com', password: 'Gerente123' })
+  });
+  const tokenGerente = loginGerente.data?.token;
+
+  // 17.1 Listar todo el personal como Dueño
+  const personalDueno = await peticion('/api/admin/personal', {
+    headers: { Authorization: `Bearer ${tokenDueno}` }
+  });
+  asegurar(
+    '17.1 Listar todo el personal como Dueño 200 OK (HU-18)',
+    personalDueno.status === 200 && Array.isArray(personalDueno.data) && personalDueno.data.length > 0
+  );
+
+  // 17.2 Listar personal filtrado por sucursal y cargo
+  const personalFiltrado = await peticion('/api/admin/personal?sucursalId=1&cargo=Barista', {
+    headers: { Authorization: `Bearer ${tokenDueno}` }
+  });
+  asegurar(
+    '17.2 Listar personal con filtros de sucursal y cargo 200 OK (HU-18)',
+    personalFiltrado.status === 200 &&
+    Array.isArray(personalFiltrado.data) &&
+    personalFiltrado.data.every(p => p.sucursalId === 1 && p.cargo.toLowerCase() === 'barista')
+  );
+
+  // 17.3 Gerente consulta personal: solo ve los de su propia sucursal (RN-04)
+  const personalGerente = await peticion('/api/admin/personal', {
+    headers: { Authorization: `Bearer ${tokenGerente}` }
+  });
+  asegurar(
+    '17.3 Gerente solo ve personal de su propia sucursal 200 OK (RN-04)',
+    personalGerente.status === 200 &&
+    Array.isArray(personalGerente.data) &&
+    personalGerente.data.every(p => p.sucursalId === 1)
+  );
+
+  // 17.4 Crear personal sin acceso al sistema (Mesero) (201 Created)
+  const timestampEmp = Date.now();
+  const crearSinAcceso = await peticion('/api/admin/personal', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({
+      nombre: `Mario Mesero ${timestampEmp}`,
+      cargo: 'Mesero',
+      telefono: '7111-2222',
+      sucursalId: 1,
+      accesoSistema: false
+    })
+  });
+  asegurar(
+    '17.4 Crear personal sin acceso al sistema sin correo ni clave 201 Created (HU-18)',
+    crearSinAcceso.status === 201 &&
+    crearSinAcceso.data.accesoSistema === false &&
+    crearSinAcceso.data.rol === 'SIN_ACCESO'
+  );
+  const idEmpleadoSinAcceso = crearSinAcceso.data?.id;
+
+  // 17.5 Crear personal con acceso (Barista) con clave temporal (201 Created, RN-02, RN-07, RN-26)
+  const crearConAcceso = await peticion('/api/admin/personal', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({
+      nombre: 'Ana Barista Mañana',
+      cargo: 'Barista',
+      telefono: '7333-4444',
+      sucursalId: 1,
+      accesoSistema: true,
+      correo: `ana_${timestampEmp}@tazamiga.com`,
+      password: 'TemporalPassword123',
+      rol: 'BARISTA'
+    })
+  });
+  asegurar(
+    '17.5 Crear personal con acceso al sistema 201 Created con clave temporal (RN-02, RN-07, RN-26)',
+    crearConAcceso.status === 201 &&
+    crearConAcceso.data.accesoSistema === true &&
+    crearConAcceso.data.debeCambiarPassword === true
+  );
+
+  // 17.6 Gerente intenta crear rol GERENTE o DUENO responde 403 Forbidden (RN-06)
+  const gerenteCreandoGerente = await peticion('/api/admin/personal', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenGerente}` },
+    body: JSON.stringify({
+      nombre: 'Intruso Gerente',
+      cargo: 'Gerente General',
+      telefono: '7555-6666',
+      sucursalId: 1,
+      accesoSistema: true,
+      correo: `intruso_${timestampEmp}@tazamiga.com`,
+      password: 'Password123',
+      rol: 'GERENTE'
+    })
+  });
+  asegurar(
+    '17.6 Gerente intentando crear rol GERENTE responde 403 Forbidden (RN-06)',
+    gerenteCreandoGerente.status === 403
+  );
+
+  // 17.7 Crear Barista sin sucursal asignada responde 400 Bad Request (RN-26)
+  const baristaSinSucursal = await peticion('/api/admin/personal', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({
+      nombre: 'Barista Sin Sede',
+      cargo: 'Barista',
+      telefono: '7777-8888',
+      accesoSistema: true,
+      correo: `sinsede_${timestampEmp}@tazamiga.com`,
+      password: 'Password123',
+      rol: 'BARISTA'
+    })
+  });
+  asegurar(
+    '17.7 Crear Barista sin sucursal asignada responde 400 Bad Request (RN-26)',
+    baristaSinSucursal.status === 400
+  );
+
+  // 17.8 Intentar crear personal con correo duplicado responde 409 Conflict (RN-02)
+  const correoPersonalDuplicado = await peticion('/api/admin/personal', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({
+      nombre: 'Duplicado Correo',
+      cargo: 'Barista',
+      telefono: '7999-0000',
+      sucursalId: 1,
+      accesoSistema: true,
+      correo: 'dueno@tazamiga.com',
+      password: 'Password123',
+      rol: 'BARISTA'
+    })
+  });
+  asegurar(
+    '17.8 Registrar personal con correo existente responde 409 Conflict (RN-02)',
+    correoPersonalDuplicado.status === 409
+  );
+
+  // 17.9 Editar datos de empleado (200 OK)
+  const editarEmpleado = await peticion(`/api/admin/personal/${idEmpleadoSinAcceso}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({
+      nombre: 'Mario Mesero Principal',
+      cargo: 'Capitán de Meseros',
+      telefono: '7111-9999',
+      sucursalId: 1,
+      accesoSistema: false
+    })
+  });
+  asegurar(
+    '17.9 Editar datos de un empleado 200 OK (HU-18)',
+    editarEmpleado.status === 200 &&
+    editarEmpleado.data.cargo === 'Capitán de Meseros' &&
+    editarEmpleado.data.telefono === '7111-9999'
+  );
+
+  // 17.10 Desactivar empleado (200 OK y log en auditoría RN-27)
+  const desactivarEmpleado = await peticion(`/api/admin/personal/${idEmpleadoSinAcceso}/activo`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({ activo: false })
+  });
+  asegurar(
+    '17.10 Desactivar empleado 200 OK y log en auditoría (HU-18, RN-10, RN-27)',
+    desactivarEmpleado.status === 200 && desactivarEmpleado.data.activo === false
+  );
+
+  // 17.11 Intentar desactivar al único dueño activo responde 409 Conflict (RN-08, RN-10)
+  await peticion('/api/admin/personal/1/activo', {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({ activo: false })
+  });
+  const desactivarUltimoDueno = await peticion('/api/admin/personal/2/activo', {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({ activo: false })
+  });
+  asegurar(
+    '17.11 Intentar desactivar al único dueño activo responde 409 Conflict (RN-08, RN-10)',
+    desactivarUltimoDueno.status === 409
+  );
+  await peticion('/api/admin/personal/1/activo', {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({ activo: true })
+  });
+
+  // 17.12 Barista accediendo a gestión de personal responde 403 Forbidden (RN-03)
+  const baristaAccediendoPersonal = await peticion('/api/admin/personal', {
+    headers: { Authorization: `Bearer ${tokenBarista}` }
+  });
+  asegurar(
+    '17.12 Barista intentando acceder a gestión de personal responde 403 Forbidden (RN-03)',
+    baristaAccediendoPersonal.status === 403
+  );
+
   console.log('\n===============================================================');
   console.log(`  RESUMEN: ${pruebasPasadas} pasadas, ${pruebasFallidas} fallidas`);
   console.log('===============================================================\n');

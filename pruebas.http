@@ -891,3 +891,152 @@ Authorization: Bearer {{tokenBarista2}}
 }
 
 
+### ===================================================================
+### 17. HU-18: ADMINISTRACIÓN DEL PERSONAL
+### Reglas verificadas: RN-02, RN-04, RN-06, RN-07, RN-08, RN-10, RN-26 y RN-27
+### ===================================================================
+
+### 17.0 Login de Gerente para pruebas de permisos (200 OK)
+# @name loginGerente
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "correo": "gerente@tazamiga.com",
+  "password": "Gerente123"
+}
+
+### Guardar token del Gerente
+@tokenGerente = {{loginGerente.response.body.token}}
+
+### 17.1 [HU-18] Listar todo el personal del negocio como Dueño (200 OK)
+GET {{baseUrl}}/api/admin/personal
+Authorization: Bearer {{tokenDueno}}
+
+### 17.2 [HU-18] Listar personal con filtros de sucursal y cargo (200 OK)
+GET {{baseUrl}}/api/admin/personal?sucursalId=1&cargo=Barista
+Authorization: Bearer {{tokenDueno}}
+
+### 17.3 [RN-04] Gerente consulta personal: solo ve los de su propia sucursal (200 OK)
+GET {{baseUrl}}/api/admin/personal
+Authorization: Bearer {{tokenGerente}}
+
+### 17.4 [HU-18] Crear personal sin acceso al sistema (Mesero) (201 Created)
+# @name crearPersonalSinAcceso
+POST {{baseUrl}}/api/admin/personal
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "nombre": "Mario Mesero",
+  "cargo": "Mesero",
+  "telefono": "7111-2222",
+  "sucursalId": 1,
+  "accesoSistema": false
+}
+
+@idEmpleadoSinAcceso = {{crearPersonalSinAcceso.response.body.id}}
+
+### 17.5 [HU-18, RN-02, RN-07, RN-26] Crear personal con acceso (Barista) con clave temporal (201 Created)
+# @name crearPersonalConAcceso
+POST {{baseUrl}}/api/admin/personal
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "nombre": "Ana Barista Mañana",
+  "cargo": "Barista",
+  "telefono": "7333-4444",
+  "sucursalId": 1,
+  "accesoSistema": true,
+  "correo": "anabarista@tazamiga.com",
+  "password": "TemporalPassword123",
+  "rol": "BARISTA"
+}
+
+@idEmpleadoConAcceso = {{crearPersonalConAcceso.response.body.id}}
+
+### 17.6 [RN-06] Gerente intenta crear un usuario con rol GERENTE o DUENO (403 Forbidden)
+POST {{baseUrl}}/api/admin/personal
+Content-Type: application/json
+Authorization: Bearer {{tokenGerente}}
+
+{
+  "nombre": "Intruso Gerente",
+  "cargo": "Gerente General",
+  "telefono": "7555-6666",
+  "sucursalId": 1,
+  "accesoSistema": true,
+  "correo": "intruso@tazamiga.com",
+  "password": "Password123",
+  "rol": "GERENTE"
+}
+
+### 17.7 [RN-26] Crear Barista sin sucursal asignada responde 400 Bad Request
+POST {{baseUrl}}/api/admin/personal
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "nombre": "Barista Sin Sede",
+  "cargo": "Barista",
+  "telefono": "7777-8888",
+  "accesoSistema": true,
+  "correo": "sinsede@tazamiga.com",
+  "password": "Password123",
+  "rol": "BARISTA"
+}
+
+### 17.8 [RN-02] Intentar crear personal con correo ya registrado (409 Conflict)
+POST {{baseUrl}}/api/admin/personal
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "nombre": "Duplicado Correo",
+  "cargo": "Barista",
+  "telefono": "7999-0000",
+  "sucursalId": 1,
+  "accesoSistema": true,
+  "correo": "dueno@tazamiga.com",
+  "password": "Password123",
+  "rol": "BARISTA"
+}
+
+### 17.9 [HU-18] Editar datos del empleado recién creado (200 OK)
+PUT {{baseUrl}}/api/admin/personal/{{idEmpleadoSinAcceso}}
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "nombre": "Mario Mesero Principal",
+  "cargo": "Capitán de Meseros",
+  "telefono": "7111-9999",
+  "sucursalId": 1,
+  "accesoSistema": false
+}
+
+### 17.10 [HU-18, RN-10, RN-27] Desactivar empleado (200 OK y log de auditoría)
+PATCH {{baseUrl}}/api/admin/personal/{{idEmpleadoSinAcceso}}/activo
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "activo": false
+}
+
+### 17.11 [RN-08, RN-10] Intentar desactivar al único dueño activo responde 409 Conflict
+PATCH {{baseUrl}}/api/admin/personal/2/activo
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "activo": false
+}
+
+### 17.12 [RN-03] Barista intentando acceder a gestión de personal responde 403 Forbidden
+GET {{baseUrl}}/api/admin/personal
+Authorization: Bearer {{tokenBarista}}
+
+
+

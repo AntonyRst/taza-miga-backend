@@ -204,6 +204,15 @@ export const editarPersonalSchema = z
   );
 
 /**
+ * Esquema para filtrar y buscar personal (HU-18).
+ */
+export const listarPersonalQuerySchema = z.object({
+  sucursalId: z.coerce.number().int().positive().optional(),
+  cargo: z.string().trim().optional(),
+  q: z.string().trim().optional()
+});
+
+/**
  * Esquema para restablecer contraseña temporal a un compañero (HU-19, RN-09).
  */
 export const restablecerPasswordSchema = z.object({

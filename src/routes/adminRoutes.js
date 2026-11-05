@@ -12,6 +12,7 @@ import {
   crearUsuarioSchema,
   crearPersonalSchema,
   editarPersonalSchema,
+  listarPersonalQuerySchema,
   restablecerPasswordSchema,
   trasladarPersonalSchema
 } from '../schemas/usuarioSchema.js';
@@ -49,7 +50,8 @@ router.get('/prueba-acceso', (req, res) => {
  */
 router.get('/personal', async (req, res, next) => {
   try {
-    const personal = await personalService.listarPersonal(req.usuario, req.query);
+    const filtros = listarPersonalQuerySchema.parse(req.query);
+    const personal = await personalService.listarPersonal(req.usuario, filtros);
     res.json(personal);
   } catch (error) {
     next(error);
