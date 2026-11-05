@@ -9,6 +9,7 @@ import opcionRoutes from './routes/opcionRoutes.js';
 import productoRoutes from './routes/productoRoutes.js';
 import publicoRoutes from './routes/publicoRoutes.js';
 import kdsRoutes from './routes/kdsRoutes.js';
+import sucursalRoutes from './routes/sucursalRoutes.js';
 import { manejarErrores } from './middlewares/manejarErrores.js';
 
 dotenv.config();
@@ -51,6 +52,17 @@ app.use('/api/publico', publicoRoutes);
 
 // Rutas del panel KDS del barista (HU-13 a HU-17, RN-21 a RN-24)
 app.use('/api/kds', kdsRoutes);
+
+// Rutas de administración de sucursales (HU-20, RN-05, RN-25)
+app.use('/api/sucursales', sucursalRoutes);
+
+// Manejo de rutas no encontradas (404 JSON seguro en vez de HTML)
+app.use((req, res) => {
+  res.status(404).json({
+    error: `Ruta no encontrada: ${req.method} ${req.originalUrl}`,
+    mensaje: `Ruta no encontrada: ${req.method} ${req.originalUrl}`
+  });
+});
 
 // Middleware global de manejo de errores
 app.use(manejarErrores);
