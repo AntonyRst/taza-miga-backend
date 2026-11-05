@@ -23,5 +23,53 @@ export const auditoriaRepository = {
     );
 
     return resultado.insertId;
+  },
+
+  /**
+   * Consulta los logs de auditoría de un negocio ordenados del más reciente al más antiguo (HU-24).
+   * Solo el dueño puede acceder (RN-03, RN-27).
+   */
+  async listarPorNegocio(negocioId, { usuarioId, accion, fechaInicio, fechaFin } = {}) {
+    let sql = `
+      SELECT
+        a.id,
+        a.negocio_id AS negocioId,
+        a.usuario_id AS usuarioId,
+        u.nombre AS usuarioNombre,
+        u.correo AS usuarioCorreo,
+        u.rol AS usuarioRol,
+        a.accion,
+        a.descripcion,
+        a.creado_en AS creadoEn
+      FROM auditoria_logs a
+      LEFT JOIN usuarios u ON a.usuario_id = u.id
+      WHERE a.negocio_id = ?
+    `;
+    const params = [negocioId];
+
+    if (usuarioId) {
+      sql += ' AND a.usuario_id = ?';
+      params.push(usuarioId);
+    }
+
+    if (accion) {
+      sql += ' AND a.accion = ?';
+      params.push(accion);
+    }
+
+    if (fechaInicio) {
+      sql += ' AND a.creado_en >= ?';
+      params.push(fechaInicio);
+    }
+
+    if (fechaFin) {
+      sql += ' AND a.creado_en <= ?';
+      params.push(fechaFin);
+    }
+
+    sql += ' ORDER BY a.creado_en DESC';
+
+    const [filas] = await pool.query(sql, params);
+    return filas;
   }
 };
