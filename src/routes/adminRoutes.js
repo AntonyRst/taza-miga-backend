@@ -122,6 +122,20 @@ router.post('/personal/:id/reset-password', async (req, res, next) => {
 });
 
 /**
+ * GET /api/admin/personal/:id/pedidos-en-curso
+ * Consulta los pedidos activos de la sucursal de un empleado antes de trasladar (HU-21).
+ */
+router.get('/personal/:id/pedidos-en-curso', async (req, res, next) => {
+  try {
+    const id = z.coerce.number().int().positive().parse(req.params.id);
+    const resultado = await personalService.consultarPedidosEnCursoEmpleado(req.usuario, id);
+    res.json(resultado);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * POST /api/admin/personal/:id/trasladar
  * Traslada personal entre sucursales. Solo DUENO (HU-21, RN-05, RN-26).
  */

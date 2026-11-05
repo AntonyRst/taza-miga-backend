@@ -1253,6 +1253,75 @@ Authorization: Bearer {{tokenDueno}}
 }
 
 
+### ===================================================================
+### 20. HU-21: TRASLADAR PERSONAL ENTRE SUCURSALES
+### Reglas verificadas: RN-04, RN-05, RN-26 y RN-27
+### ===================================================================
+
+### 20.1 [HU-21] Consultar pedidos en curso de la sucursal de un empleado antes de trasladar (200 OK)
+GET {{baseUrl}}/api/admin/personal/3/pedidos-en-curso
+Authorization: Bearer {{tokenDueno}}
+
+### 20.2 [HU-21, RN-05, RN-26, RN-27] Dueño traslada Barista de Sucursal 1 a Sucursal recién creada (200 OK y log auditoría)
+POST {{baseUrl}}/api/admin/personal/3/trasladar
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "nuevaSucursalId": {{idSucursalGps}}
+}
+
+### 20.3 [RN-26] Verificar que el Barista ahora pertenece a la nueva sucursal (200 OK)
+GET {{baseUrl}}/api/admin/personal?q=Carlos
+Authorization: Bearer {{tokenDueno}}
+
+### 20.4 [RN-05] Gerente intenta trasladar personal entre sucursales responde 403 Forbidden
+POST {{baseUrl}}/api/admin/personal/3/trasladar
+Content-Type: application/json
+Authorization: Bearer {{tokenGerente}}
+
+{
+  "nuevaSucursalId": 1
+}
+
+### 20.5 Intentar trasladar personal a una sucursal inactiva responde 400 Bad Request
+POST {{baseUrl}}/api/admin/personal/3/trasladar
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "nuevaSucursalId": {{idSucursalManual}}
+}
+
+### 20.6 Intentar trasladar a la misma sucursal actual responde 400 Bad Request
+POST {{baseUrl}}/api/admin/personal/3/trasladar
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "nuevaSucursalId": {{idSucursalGps}}
+}
+
+### 20.7 Intentar trasladar a un Dueño responde 400 Bad Request
+POST {{baseUrl}}/api/admin/personal/2/trasladar
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "nuevaSucursalId": 1
+}
+
+### 20.8 Restaurar Barista a su Sucursal 1 original para mantener estado limpio (200 OK)
+POST {{baseUrl}}/api/admin/personal/3/trasladar
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "nuevaSucursalId": 1
+}
+
+
+
 
 
 

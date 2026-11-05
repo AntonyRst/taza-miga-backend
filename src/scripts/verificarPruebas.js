@@ -1261,6 +1261,96 @@ async function correrPruebas() {
     sucursalInexistente.status === 404
   );
 
+  // 20. Trasladar personal entre sucursales (HU-21, RN-04, RN-05, RN-26, RN-27)
+  console.log('\n--- 20. Trasladar personal entre sucursales (HU-21, RN-04, RN-05, RN-26, RN-27) ---');
+
+  // 20.1 Consultar pedidos en curso de la sucursal de un empleado antes de trasladar
+  const consultaPedidos = await peticion('/api/admin/personal/3/pedidos-en-curso', {
+    headers: { Authorization: `Bearer ${tokenDueno}` }
+  });
+  asegurar(
+    '20.1 Consultar pedidos en curso de la sucursal del empleado 200 OK (HU-21)',
+    consultaPedidos.status === 200 && typeof consultaPedidos.data.pedidosEnCurso === 'number'
+  );
+
+  // 20.2 Dueño traslada Barista a la nueva sucursal creada (200 OK y log en auditoría)
+  const trasladoOk = await peticion('/api/admin/personal/3/trasladar', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({ nuevaSucursalId: idSucursalGps })
+  });
+  asegurar(
+    '20.2 Dueño traslada Barista a nueva sucursal 200 OK y log en auditoría (HU-21, RN-05, RN-26, RN-27)',
+    trasladoOk.status === 200 &&
+    trasladoOk.data.nuevaSucursalId === idSucursalGps &&
+    trasladoOk.data.sucursalAnteriorId === 1
+  );
+
+  // 20.3 Verificar que el barista ahora tiene asignada la nueva sucursal
+  const baristaTrasladado = await peticion('/api/admin/personal?q=Carlos', {
+    headers: { Authorization: `Bearer ${tokenDueno}` }
+  });
+  asegurar(
+    '20.3 Barista ahora pertenece efectivamente a la nueva sucursal 200 OK (RN-26)',
+    baristaTrasladado.status === 200 &&
+    baristaTrasladado.data.some(p => p.id === 3 && p.sucursalId === idSucursalGps)
+  );
+
+  // 20.4 Gerente intenta trasladar personal responde 403 Forbidden (RN-05)
+  const gerenteTraslada = await peticion('/api/admin/personal/3/trasladar', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenGerente}` },
+    body: JSON.stringify({ nuevaSucursalId: 1 })
+  });
+  asegurar(
+    '20.4 Gerente intentando trasladar personal responde 403 Forbidden (RN-05)',
+    gerenteTraslada.status === 403
+  );
+
+  // 20.5 Trasladar a sucursal inactiva responde 400 Bad Request
+  const trasladoInactiva = await peticion('/api/admin/personal/3/trasladar', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({ nuevaSucursalId: idSucursalManual })
+  });
+  asegurar(
+    '20.5 Trasladar personal a sucursal inactiva responde 400 Bad Request',
+    trasladoInactiva.status === 400
+  );
+
+  // 20.6 Trasladar a la misma sucursal actual responde 400 Bad Request
+  const trasladoMisma = await peticion('/api/admin/personal/3/trasladar', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({ nuevaSucursalId: idSucursalGps })
+  });
+  asegurar(
+    '20.6 Trasladar a la misma sucursal actual responde 400 Bad Request',
+    trasladoMisma.status === 400
+  );
+
+  // 20.7 Intentar trasladar a un Dueño responde 400 Bad Request
+  const trasladoDueno = await peticion('/api/admin/personal/2/trasladar', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({ nuevaSucursalId: 1 })
+  });
+  asegurar(
+    '20.7 Intentar trasladar a un Dueño responde 400 Bad Request',
+    trasladoDueno.status === 400
+  );
+
+  // 20.8 Restaurar Barista a su Sucursal 1 original para mantener estado limpio (200 OK)
+  const restaurarSucursal = await peticion('/api/admin/personal/3/trasladar', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({ nuevaSucursalId: 1 })
+  });
+  asegurar(
+    '20.8 Restaurar Barista a su Sucursal 1 original 200 OK',
+    restaurarSucursal.status === 200 && restaurarSucursal.data.nuevaSucursalId === 1
+  );
+
   console.log('\n===============================================================');
   console.log(`  RESUMEN: ${pruebasPasadas} pasadas, ${pruebasFallidas} fallidas`);
   console.log('===============================================================\n');

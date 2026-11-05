@@ -232,6 +232,29 @@ export const personalService = {
   },
 
   /**
+   * Consulta los pedidos en curso de la sucursal de un empleado (HU-21).
+   */
+  async consultarPedidosEnCursoEmpleado(usuario, id) {
+    const empleado = await usuarioRepository.buscarPorIdYNegocio(id, usuario.negocio_id);
+    if (!empleado) {
+      throw new ErrorApp('Empleado no encontrado', 404);
+    }
+
+    let pedidosEnCurso = 0;
+    if (empleado.sucursalId) {
+      pedidosEnCurso = await usuarioRepository.contarPedidosEnCursoPorSucursal(empleado.sucursalId);
+    }
+
+    return {
+      id: empleado.id,
+      nombre: empleado.nombre,
+      sucursalId: empleado.sucursalId,
+      sucursalNombre: empleado.sucursalNombre,
+      pedidosEnCurso
+    };
+  },
+
+  /**
    * Traslada a un empleado entre sucursales (HU-21, RN-05, RN-26).
    */
   async trasladarPersonal(usuario, id, nuevaSucursalId) {
@@ -243,6 +266,14 @@ export const personalService = {
     const empleado = await usuarioRepository.buscarPorIdYNegocio(id, usuario.negocio_id);
     if (!empleado) {
       throw new ErrorApp('Empleado no encontrado', 404);
+    }
+
+    if (empleado.rol === 'DUENO') {
+      throw new ErrorApp('El dueño no se asigna a una sucursal específica (opera todas)', 400);
+    }
+
+    if (empleado.sucursalId === nuevaSucursalId) {
+      throw new ErrorApp('El empleado ya está asignado a esa sucursal', 400);
     }
 
     const nuevaSucursal = await sucursalRepository.buscarPorIdYNegocio(nuevaSucursalId, usuario.negocio_id);
