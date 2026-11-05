@@ -1127,5 +1127,132 @@ Authorization: Bearer {{tokenBaristaTemporal}}
 }
 
 
+### ===================================================================
+### 19. HU-20: ADMINISTRACIÓN DE SUCURSALES (MAPA LEAFLET Y MANUAL)
+### Reglas verificadas: RN-01, RN-05, RN-10, RN-25 y RN-27
+### ===================================================================
+
+### 19.1 [HU-20] Dueño lista todas las sucursales del negocio (200 OK)
+GET {{baseUrl}}/api/admin/sucursales
+Authorization: Bearer {{tokenDueno}}
+
+### 19.2 [HU-20, RN-25] Dueño crea sucursal con coordenadas GPS del mapa (201 Created)
+# @name crearSucursalGps
+POST {{baseUrl}}/api/admin/sucursales
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "nombre": "Sucursal San Benito",
+  "direccion": "Boulevard del Hipódromo #340, San Salvador",
+  "telefono": "2222-7777",
+  "cantidadMesas": 15,
+  "latitud": 13.6892,
+  "longitud": -89.2435
+}
+
+@idSucursalGps = {{crearSucursalGps.response.body.id}}
+
+### 19.3 [HU-20, RN-25] Dueño crea sucursal manual sin coordenadas GPS (201 Created)
+# @name crearSucursalManual
+POST {{baseUrl}}/api/admin/sucursales
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "nombre": "Sucursal Los Héroes",
+  "direccion": "Paseo General Escalón #120",
+  "telefono": "2222-8888",
+  "cantidadMesas": 10
+}
+
+@idSucursalManual = {{crearSucursalManual.response.body.id}}
+
+### 19.4 [RN-25] Enviar latitud sin longitud o viceversa responde 400 Bad Request
+POST {{baseUrl}}/api/admin/sucursales
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "nombre": "Sucursal Incompleta",
+  "direccion": "Calle Principal #1",
+  "cantidadMesas": 5,
+  "latitud": 13.69
+}
+
+### 19.5 [RN-05] Gerente intenta crear una sucursal (403 Forbidden)
+POST {{baseUrl}}/api/admin/sucursales
+Content-Type: application/json
+Authorization: Bearer {{tokenGerente}}
+
+{
+  "nombre": "Sucursal Intruso",
+  "direccion": "Calle Falsa 123",
+  "cantidadMesas": 8
+}
+
+### 19.6 [HU-20] Dueño edita datos de una sucursal (200 OK)
+PUT {{baseUrl}}/api/admin/sucursales/{{idSucursalGps}}
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "nombre": "Sucursal San Benito Plaza",
+  "direccion": "Boulevard del Hipódromo #340, Local 2B",
+  "telefono": "2222-7788",
+  "cantidadMesas": 18,
+  "latitud": 13.6895,
+  "longitud": -89.2438
+}
+
+### 19.7 [RN-05] Gerente intenta editar una sucursal (403 Forbidden)
+PUT {{baseUrl}}/api/admin/sucursales/{{idSucursalGps}}
+Content-Type: application/json
+Authorization: Bearer {{tokenGerente}}
+
+{
+  "nombre": "Hack Gerente",
+  "direccion": "Avenida Hack",
+  "cantidadMesas": 20
+}
+
+### 19.8 [RN-25] Intentar desactivar sucursal con personal activo asignado responde 409 Conflict
+PATCH {{baseUrl}}/api/admin/sucursales/1/activa
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "activa": false
+}
+
+### 19.9 [HU-20, RN-25, RN-27] Desactivar sucursal sin personal activo asignado (200 OK y log en auditoría)
+PATCH {{baseUrl}}/api/admin/sucursales/{{idSucursalManual}}/activa
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "activa": false
+}
+
+### 19.10 [RN-05] Gerente intenta desactivar una sucursal (403 Forbidden)
+PATCH {{baseUrl}}/api/admin/sucursales/{{idSucursalManual}}/activa
+Content-Type: application/json
+Authorization: Bearer {{tokenGerente}}
+
+{
+  "activa": true
+}
+
+### 19.11 [RN-01] Dueño intenta modificar una sucursal de otro negocio o inexistente (404 Not Found)
+PATCH {{baseUrl}}/api/admin/sucursales/999999/activa
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "activa": false
+}
+
+
+
 
 

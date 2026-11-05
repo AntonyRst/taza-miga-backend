@@ -1095,6 +1095,172 @@ async function correrPruebas() {
     cambioExitoso.status === 200 && Boolean(cambioExitoso.data.token)
   );
 
+  // 19. Administración de sucursales (HU-20, RN-01, RN-05, RN-10, RN-25, RN-27)
+  console.log('\n--- 19. Administración de sucursales (HU-20, RN-01, RN-05, RN-10, RN-25, RN-27) ---');
+
+  // 19.1 Dueño lista sucursales con personal asignado
+  const sucursalesDueno = await peticion('/api/admin/sucursales', {
+    headers: { Authorization: `Bearer ${tokenDueno}` }
+  });
+  asegurar(
+    '19.1 Dueño lista todas las sucursales con contador de personal activo 200 OK (HU-20)',
+    sucursalesDueno.status === 200 &&
+    Array.isArray(sucursalesDueno.data) &&
+    sucursalesDueno.data.length > 0 &&
+    typeof sucursalesDueno.data[0].personalAsignado === 'number'
+  );
+
+  // 19.2 Dueño crea sucursal con coordenadas GPS
+  const timestampSuc = Date.now();
+  const crearSucursalGps = await peticion('/api/admin/sucursales', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({
+      nombre: `Sucursal San Benito ${timestampSuc}`,
+      direccion: 'Boulevard del Hipódromo #340, San Salvador',
+      telefono: '2222-7777',
+      cantidadMesas: 15,
+      latitud: 13.6892,
+      longitud: -89.2435
+    })
+  });
+  asegurar(
+    '19.2 Dueño crea sucursal con coordenadas GPS del mapa 201 Created (HU-20, RN-25)',
+    crearSucursalGps.status === 201 &&
+    crearSucursalGps.data.latitud !== null &&
+    crearSucursalGps.data.longitud !== null
+  );
+  const idSucursalGps = crearSucursalGps.data?.id;
+
+  // 19.3 Dueño crea sucursal manual sin coordenadas GPS
+  const crearSucursalManual = await peticion('/api/admin/sucursales', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({
+      nombre: `Sucursal Los Héroes ${timestampSuc}`,
+      direccion: 'Paseo General Escalón #120',
+      telefono: '2222-8888',
+      cantidadMesas: 10
+    })
+  });
+  asegurar(
+    '19.3 Dueño crea sucursal manual sin coordenadas GPS 201 Created (HU-20, RN-25)',
+    crearSucursalManual.status === 201 &&
+    crearSucursalManual.data.latitud === null &&
+    crearSucursalManual.data.longitud === null
+  );
+  const idSucursalManual = crearSucursalManual.data?.id;
+
+  // 19.4 Enviar latitud sin longitud responde 400 Bad Request (RN-25)
+  const latitudSinLongitud = await peticion('/api/admin/sucursales', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({
+      nombre: 'Sucursal Incompleta',
+      direccion: 'Calle Principal #1',
+      cantidadMesas: 5,
+      latitud: 13.69
+    })
+  });
+  asegurar(
+    '19.4 Enviar latitud sin longitud responde 400 Bad Request (RN-25)',
+    latitudSinLongitud.status === 400
+  );
+
+  // 19.5 Gerente intenta crear una sucursal responde 403 Forbidden (RN-05)
+  const gerenteCreaSucursal = await peticion('/api/admin/sucursales', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenGerente}` },
+    body: JSON.stringify({
+      nombre: 'Sucursal Intruso',
+      direccion: 'Calle Falsa 123',
+      cantidadMesas: 8
+    })
+  });
+  asegurar(
+    '19.5 Gerente intenta crear sucursal responde 403 Forbidden (RN-05)',
+    gerenteCreaSucursal.status === 403
+  );
+
+  // 19.6 Dueño edita datos de sucursal (200 OK)
+  const editarSucursal = await peticion(`/api/admin/sucursales/${idSucursalGps}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({
+      nombre: `Sucursal San Benito Plaza ${timestampSuc}`,
+      direccion: 'Boulevard del Hipódromo #340, Local 2B',
+      telefono: '2222-7788',
+      cantidadMesas: 18,
+      latitud: 13.6895,
+      longitud: -89.2438
+    })
+  });
+  asegurar(
+    '19.6 Dueño edita datos de sucursal 200 OK (HU-20)',
+    editarSucursal.status === 200 &&
+    editarSucursal.data.cantidadMesas === 18 &&
+    editarSucursal.data.telefono === '2222-7788'
+  );
+
+  // 19.7 Gerente intenta editar sucursal responde 403 Forbidden (RN-05)
+  const gerenteEditaSucursal = await peticion(`/api/admin/sucursales/${idSucursalGps}`, {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${tokenGerente}` },
+    body: JSON.stringify({
+      nombre: 'Hack Gerente',
+      direccion: 'Avenida Hack',
+      cantidadMesas: 20
+    })
+  });
+  asegurar(
+    '19.7 Gerente intenta editar sucursal responde 403 Forbidden (RN-05)',
+    gerenteEditaSucursal.status === 403
+  );
+
+  // 19.8 Intentar desactivar sucursal con personal activo asignado responde 409 Conflict (RN-25)
+  const desactivarConPersonal = await peticion('/api/admin/sucursales/1/activa', {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({ activa: false })
+  });
+  asegurar(
+    '19.8 Intentar desactivar sucursal con personal activo asignado responde 409 Conflict (RN-25)',
+    desactivarConPersonal.status === 409
+  );
+
+  // 19.9 Desactivar sucursal sin personal activo asignado 200 OK y log en auditoría (RN-25, RN-27)
+  const desactivarSinPersonal = await peticion(`/api/admin/sucursales/${idSucursalManual}/activa`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({ activa: false })
+  });
+  asegurar(
+    '19.9 Desactivar sucursal sin personal activo asignado 200 OK y log en auditoría (RN-25, RN-27)',
+    desactivarSinPersonal.status === 200 && desactivarSinPersonal.data.activa === false
+  );
+
+  // 19.10 Gerente intenta desactivar sucursal responde 403 Forbidden (RN-05)
+  const gerenteDesactivaSucursal = await peticion(`/api/admin/sucursales/${idSucursalManual}/activa`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${tokenGerente}` },
+    body: JSON.stringify({ activa: true })
+  });
+  asegurar(
+    '19.10 Gerente intenta desactivar sucursal responde 403 Forbidden (RN-05)',
+    gerenteDesactivaSucursal.status === 403
+  );
+
+  // 19.11 Dueño intenta modificar sucursal inexistente responde 404 Not Found (RN-01)
+  const sucursalInexistente = await peticion('/api/admin/sucursales/999999/activa', {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({ activa: false })
+  });
+  asegurar(
+    '19.11 Modificar sucursal inexistente responde 404 Not Found (RN-01)',
+    sucursalInexistente.status === 404
+  );
+
   console.log('\n===============================================================');
   console.log(`  RESUMEN: ${pruebasPasadas} pasadas, ${pruebasFallidas} fallidas`);
   console.log('===============================================================\n');
