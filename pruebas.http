@@ -717,3 +717,177 @@ Content-Type: application/json
   "nombreCliente": "Nombre Equivocado"
 }
 
+
+### ===================================================================
+### 16. PANEL KDS DEL BARISTA, ESTADOS, PAGOS, CANCELACIONES Y TICKETS
+### Historias: HU-13, HU-14, HU-15, HU-16, HU-17
+### Reglas verificadas: RN-21, RN-22, RN-23, RN-24, RN-27, RN-04
+### ===================================================================
+
+### 16.0 Login como Barista de Negocio 2 (Café París) para probar aislamiento entre sucursales (RN-04)
+# @name loginBarista2
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "correo": "barista2@cafeparis.com",
+  "password": "Barista123"
+}
+
+### Guardar token del Barista 2
+@tokenBarista2 = {{loginBarista2.response.body.token}}
+
+### ID del primer pedido creado para transiciones
+@idOrden1 = {{crearPedidoBarra.response.body.id}}
+
+### 16.1 [HU-13, RN-03] Barista lista pedidos activos de su sucursal (200 OK)
+GET {{baseUrl}}/api/kds/pedidos
+Authorization: Bearer {{tokenBarista}}
+
+### 16.2 [RN-03] Intentar listar pedidos sin token (401 No autorizado)
+GET {{baseUrl}}/api/kds/pedidos
+
+### 16.3 [RN-04] Barista de Sucursal 2 no ve los pedidos de la Sucursal 1 (200 OK con lista vacía)
+GET {{baseUrl}}/api/kds/pedidos
+Authorization: Bearer {{tokenBarista2}}
+
+### 16.4 [HU-14, RN-21] Avanzar estado de RECIBIDO a PREPARACION (200 OK)
+PATCH {{baseUrl}}/api/kds/pedidos/{{idOrden1}}/estado
+Content-Type: application/json
+Authorization: Bearer {{tokenBarista}}
+
+{
+  "estado": "PREPARACION"
+}
+
+### 16.5 [RN-21] Intentar retroceder de PREPARACION a RECIBIDO (409 Conflict)
+PATCH {{baseUrl}}/api/kds/pedidos/{{idOrden1}}/estado
+Content-Type: application/json
+Authorization: Bearer {{tokenBarista}}
+
+{
+  "estado": "RECIBIDO"
+}
+
+### 16.6 [RN-21] Intentar saltar de PREPARACION a ENTREGADO sin pasar por LISTO (409 Conflict)
+PATCH {{baseUrl}}/api/kds/pedidos/{{idOrden1}}/estado
+Content-Type: application/json
+Authorization: Bearer {{tokenBarista}}
+
+{
+  "estado": "ENTREGADO"
+}
+
+### 16.7 [HU-14, RN-21] Avanzar de PREPARACION a LISTO (200 OK)
+PATCH {{baseUrl}}/api/kds/pedidos/{{idOrden1}}/estado
+Content-Type: application/json
+Authorization: Bearer {{tokenBarista}}
+
+{
+  "estado": "LISTO"
+}
+
+### 16.8 [RN-22] Intentar cancelar pedido en estado LISTO (409 Conflict)
+POST {{baseUrl}}/api/kds/pedidos/{{idOrden1}}/cancelar
+Content-Type: application/json
+Authorization: Bearer {{tokenBarista}}
+
+{
+  "motivo": "Intento inválido de cancelar pedido listo"
+}
+
+### 16.9 [RN-23] Intentar entregar pedido que sigue SIN_PAGAR (409 Conflict)
+PATCH {{baseUrl}}/api/kds/pedidos/{{idOrden1}}/estado
+Content-Type: application/json
+Authorization: Bearer {{tokenBarista}}
+
+{
+  "estado": "ENTREGADO"
+}
+
+### 16.10 [HU-15, RN-23] Registrar pago en barra: SIN_PAGAR a PAGADO (200 OK)
+PATCH {{baseUrl}}/api/kds/pedidos/{{idOrden1}}/pago
+Authorization: Bearer {{tokenBarista}}
+
+### 16.11 [RN-23] Intentar registrar pago nuevamente cuando ya está PAGADO (409 Conflict)
+PATCH {{baseUrl}}/api/kds/pedidos/{{idOrden1}}/pago
+Authorization: Bearer {{tokenBarista}}
+
+### 16.12 [HU-14, HU-17, RN-24] Entregar pedido LISTO y PAGADO: genera ticket atómicamente (200 OK)
+# @name entregarPedido
+PATCH {{baseUrl}}/api/kds/pedidos/{{idOrden1}}/estado
+Content-Type: application/json
+Authorization: Bearer {{tokenBarista}}
+
+{
+  "estado": "ENTREGADO"
+}
+
+### 16.13 [RN-21] Intentar avanzar o alterar un pedido ya ENTREGADO (409 Conflict)
+PATCH {{baseUrl}}/api/kds/pedidos/{{idOrden1}}/estado
+Content-Type: application/json
+Authorization: Bearer {{tokenBarista}}
+
+{
+  "estado": "LISTO"
+}
+
+### 16.14 [HU-17] Consultar ticket generado del pedido entregado (200 OK)
+GET {{baseUrl}}/api/kds/pedidos/{{idOrden1}}/ticket
+Authorization: Bearer {{tokenBarista}}
+
+### 16.15 [HU-17, RN-24] Reimprimir ticket sumando 1 a reimpresiones (200 OK)
+POST {{baseUrl}}/api/kds/pedidos/{{idOrden1}}/ticket/reimprimir
+Authorization: Bearer {{tokenBarista}}
+
+### 16.16 [HU-11] Crear un tercer pedido para probar el flujo de cancelación con motivo
+# @name crearPedidoParaCancelar
+POST {{baseUrl}}/api/publico/taza-miga/ordenes
+Content-Type: application/json
+
+{
+  "sucursalId": 1,
+  "nombreCliente": "Cliente Para Cancelar",
+  "tipoEntrega": "MESA",
+  "numeroMesa": 3,
+  "metodoPago": "BARRA",
+  "lineas": [
+    {
+      "productoId": 1,
+      "cantidad": 1,
+      "opcionesIds": [1]
+    }
+  ]
+}
+
+### ID de la orden para cancelar
+@idOrdenCancelar = {{crearPedidoParaCancelar.response.body.id}}
+
+### 16.17 [HU-16, RN-22] Intentar cancelar pedido sin motivo (400 Bad Request)
+POST {{baseUrl}}/api/kds/pedidos/{{idOrdenCancelar}}/cancelar
+Content-Type: application/json
+Authorization: Bearer {{tokenBarista}}
+
+{
+  "motivo": ""
+}
+
+### 16.18 [HU-16, RN-22, RN-27] Cancelar pedido con motivo válido desde RECIBIDO (200 OK y log en auditoria)
+POST {{baseUrl}}/api/kds/pedidos/{{idOrdenCancelar}}/cancelar
+Content-Type: application/json
+Authorization: Bearer {{tokenBarista}}
+
+{
+  "motivo": "El cliente se retiró antes de preparar el café"
+}
+
+### 16.19 [RN-04] Barista de Sucursal 2 intenta cancelar pedido de Sucursal 1 (404 Not Found)
+POST {{baseUrl}}/api/kds/pedidos/{{idOrden1}}/cancelar
+Content-Type: application/json
+Authorization: Bearer {{tokenBarista2}}
+
+{
+  "motivo": "Ataque entre sucursales"
+}
+
+

@@ -42,3 +42,8 @@ ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), activo = TRUE, de
 INSERT INTO usuarios (negocio_id, sucursal_id, nombre, cargo, telefono, acceso_sistema, correo, password_hash, rol, debe_cambiar_password, activo)
 VALUES (2, NULL, 'Dueño Café París', 'Dueño', '7000-0005', TRUE, 'dueno@cafeparis.com', '$2b$10$MOXqSuQYvbVLhIZGeL7NbuuL5Jm7N5zfW.OU./gLli9ckzD9TFg7K', 'DUENO', FALSE, TRUE)
 ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), activo = TRUE;
+
+-- 6. Barista de Café París (Negocio 2, Sucursal 2, para RN-04)
+INSERT INTO usuarios (negocio_id, sucursal_id, nombre, cargo, telefono, acceso_sistema, correo, password_hash, rol, debe_cambiar_password, activo)
+VALUES (2, 2, 'Barista París', 'Barista', '7000-0006', TRUE, 'barista2@cafeparis.com', '$2b$10$T/Ug11gTV7uDlLqC0fb4ru/o/ph9dgYSehUPoriVRJpzjUqtx9Z6u', 'BARISTA', FALSE, TRUE)
+ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), activo = TRUE;

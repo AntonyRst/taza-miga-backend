@@ -93,6 +93,15 @@ async function sembrar() {
       ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), activo = TRUE
     `, [negocio2Id, hashDueno2]);
 
+    // 5. Barista de Negocio 2, Sucursal 2 (RN-04)
+    const [sucursal2Filas] = await conexion.query('SELECT id FROM sucursales WHERE negocio_id = ? LIMIT 1', [negocio2Id]);
+    const sucursal2Id = sucursal2Filas[0]?.id || 2;
+    await conexion.query(`
+      INSERT INTO usuarios (negocio_id, sucursal_id, nombre, cargo, telefono, acceso_sistema, correo, password_hash, rol, debe_cambiar_password, activo)
+      VALUES (?, ?, 'Barista París', 'Barista', '7000-0006', TRUE, 'barista2@cafeparis.com', ?, 'BARISTA', FALSE, TRUE)
+      ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), activo = TRUE
+    `, [negocio2Id, sucursal2Id, hashBarista]);
+
     await conexion.commit();
     console.log('✅ Semillas de prueba insertadas correctamente.');
   } catch (error) {

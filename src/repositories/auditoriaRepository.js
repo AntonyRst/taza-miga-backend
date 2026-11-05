@@ -14,8 +14,9 @@ export const auditoriaRepository = {
    * @param {string} datos.descripcion
    * @returns {Promise<number>}
    */
-  async registrar({ negocioId, usuarioId, accion, descripcion }) {
-    const [resultado] = await pool.query(
+  async registrar({ negocioId, usuarioId, accion, descripcion }, conexion = null) {
+    const ejecutor = conexion || pool;
+    const [resultado] = await ejecutor.query(
       `INSERT INTO auditoria_logs (negocio_id, usuario_id, accion, descripcion)
        VALUES (?, ?, ?, ?)`,
       [negocioId, usuarioId, accion, descripcion]

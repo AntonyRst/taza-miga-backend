@@ -1,3 +1,5 @@
+import { execSync } from 'child_process';
+
 /**
  * Script de verificación automatizada para correr y validar todos los casos
  * de pruebas.http contra el servidor local (puerto 3001).
@@ -32,6 +34,11 @@ function asegurar(nombre, condicion, detalle = '') {
 }
 
 async function correrPruebas() {
+  // Asegurar que las semillas de prueba estén en su estado inicial
+  try {
+    execSync('node src/scripts/sembrarPruebas.js', { stdio: 'ignore' });
+  } catch {}
+
   console.log('===============================================================');
   console.log('  VERIFICACIÓN COMPLETA DE PRUEBAS DE API (Entrega 1)');
   console.log('===============================================================\n');
@@ -595,6 +602,191 @@ async function correrPruebas() {
     busquedaFallida.status === 404 &&
     busquedaFallida.data.error === 'No encontramos ese pedido'
   );
+
+  // 16. KDS, estados, pagos, cancelaciones y tickets (HU-13 a HU-17)
+  console.log('\n--- 16. Panel KDS, estados, pagos, cancelaciones y tickets (HU-13 a HU-17) ---');
+
+  const loginBarista2 = await peticion('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ correo: 'barista2@cafeparis.com', password: 'Barista123' })
+  });
+  const tokenBarista2 = loginBarista2.data?.token;
+
+  // 16.1 Listar pedidos activos KDS
+  const kdsOk = await peticion('/api/kds/pedidos', {
+    headers: { Authorization: `Bearer ${tokenBarista}` }
+  });
+  asegurar(
+    '16.1 Barista lista pedidos activos de su sucursal 200 OK (HU-13)',
+    kdsOk.status === 200 && Array.isArray(kdsOk.data.ordenes) && kdsOk.data.ordenes.length > 0
+  );
+
+  // 16.2 KDS sin token responde 401
+  const kdsSinToken = await peticion('/api/kds/pedidos');
+  asegurar('16.2 Acceso a KDS sin autenticación responde 401 (RN-03)', kdsSinToken.status === 401);
+
+  // 16.3 Barista de Sucursal 2 no ve pedidos de Sucursal 1 (RN-04)
+  const kdsSucursal2 = await peticion('/api/kds/pedidos', {
+    headers: { Authorization: `Bearer ${tokenBarista2}` }
+  });
+  asegurar(
+    '16.3 Barista de Sucursal 2 tiene aislamiento y no ve pedidos de Sucursal 1 (RN-04)',
+    kdsSucursal2.status === 200 && kdsSucursal2.data.ordenes.length === 0
+  );
+
+  // 16.4 Avanzar estado RECIBIDO -> PREPARACION
+  const avanzarPreparacion = await peticion(`/api/kds/pedidos/${orden1.id}/estado`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${tokenBarista}` },
+    body: JSON.stringify({ estado: 'PREPARACION' })
+  });
+  asegurar(
+    '16.4 Avanzar de RECIBIDO a PREPARACION 200 OK (HU-14, RN-21)',
+    avanzarPreparacion.status === 200 && avanzarPreparacion.data.nuevoEstado === 'PREPARACION'
+  );
+
+  // 16.5 Retroceso no permitido PREPARACION -> RECIBIDO
+  const retrocesoInvalido = await peticion(`/api/kds/pedidos/${orden1.id}/estado`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${tokenBarista}` },
+    body: JSON.stringify({ estado: 'RECIBIDO' })
+  });
+  asegurar('16.5 Retroceder estado responde 409 Conflict (RN-21)', retrocesoInvalido.status === 409);
+
+  // 16.6 Salto no permitido PREPARACION -> ENTREGADO
+  const saltoInvalido = await peticion(`/api/kds/pedidos/${orden1.id}/estado`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${tokenBarista}` },
+    body: JSON.stringify({ estado: 'ENTREGADO' })
+  });
+  asegurar('16.6 Saltar estado sin pasar por LISTO responde 409 Conflict (RN-21)', saltoInvalido.status === 409);
+
+  // 16.7 Avanzar PREPARACION -> LISTO
+  const avanzarListo = await peticion(`/api/kds/pedidos/${orden1.id}/estado`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${tokenBarista}` },
+    body: JSON.stringify({ estado: 'LISTO' })
+  });
+  asegurar(
+    '16.7 Avanzar de PREPARACION a LISTO 200 OK (RN-21)',
+    avanzarListo.status === 200 && avanzarListo.data.nuevoEstado === 'LISTO'
+  );
+
+  // 16.8 Cancelar pedido en LISTO no permitido
+  const cancelarListo = await peticion(`/api/kds/pedidos/${orden1.id}/cancelar`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenBarista}` },
+    body: JSON.stringify({ motivo: 'Intentando cancelar en LISTO' })
+  });
+  asegurar('16.8 Cancelar pedido en estado LISTO responde 409 Conflict (RN-22)', cancelarListo.status === 409);
+
+  // 16.9 Entregar pedido SIN_PAGAR responde 409 (RN-23)
+  const entregarSinPagar = await peticion(`/api/kds/pedidos/${orden1.id}/estado`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${tokenBarista}` },
+    body: JSON.stringify({ estado: 'ENTREGADO' })
+  });
+  asegurar('16.9 Entregar pedido sin haber registrado pago responde 409 Conflict (RN-23)', entregarSinPagar.status === 409);
+
+  // 16.10 Registrar pago en barra
+  const registrarPago = await peticion(`/api/kds/pedidos/${orden1.id}/pago`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${tokenBarista}` }
+  });
+  asegurar(
+    '16.10 Registrar pago en barra pasa a PAGADO 200 OK (HU-15, RN-23)',
+    registrarPago.status === 200 && registrarPago.data.estadoPago === 'PAGADO'
+  );
+
+  // 16.11 Registrar pago ya pagado responde 409
+  const reintentarPago = await peticion(`/api/kds/pedidos/${orden1.id}/pago`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${tokenBarista}` }
+  });
+  asegurar('16.11 Intentar cobrar pedido ya pagado responde 409 Conflict (RN-23)', reintentarPago.status === 409);
+
+  // 16.12 Entregar pedido LISTO y PAGADO: genera ticket atómico (RN-24)
+  const entregaOk = await peticion(`/api/kds/pedidos/${orden1.id}/estado`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${tokenBarista}` },
+    body: JSON.stringify({ estado: 'ENTREGADO' })
+  });
+  asegurar(
+    '16.12 Entregar pedido genera ticket en misma transacción 200 OK (HU-14, HU-17, RN-24)',
+    entregaOk.status === 200 &&
+    entregaOk.data.nuevoEstado === 'ENTREGADO' &&
+    Boolean(entregaOk.data.ticket?.contenido)
+  );
+
+  // 16.13 Alterar estado de ENTREGADO responde 409
+  const alterarEntregado = await peticion(`/api/kds/pedidos/${orden1.id}/estado`, {
+    method: 'PATCH',
+    headers: { Authorization: `Bearer ${tokenBarista}` },
+    body: JSON.stringify({ estado: 'LISTO' })
+  });
+  asegurar('16.13 Cambiar estado de un pedido ya finalizado responde 409 Conflict (RN-21)', alterarEntregado.status === 409);
+
+  // 16.14 Consultar ticket despachado
+  const ticketConsulta = await peticion(`/api/kds/pedidos/${orden1.id}/ticket`, {
+    headers: { Authorization: `Bearer ${tokenBarista}` }
+  });
+  asegurar(
+    '16.14 Consultar ticket guardado del pedido 200 OK (HU-17)',
+    ticketConsulta.status === 200 &&
+    ticketConsulta.data.contenido.includes(`PEDIDO: #${orden1.numeroOrden}`) &&
+    ticketConsulta.data.reimpresiones === 0
+  );
+
+  // 16.15 Reimprimir ticket incrementa reimpresiones
+  const reimprimir = await peticion(`/api/kds/pedidos/${orden1.id}/ticket/reimprimir`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenBarista}` }
+  });
+  asegurar(
+    '16.15 Reimprimir ticket suma 1 a contador de reimpresiones 200 OK (RN-24)',
+    reimprimir.status === 200 && reimprimir.data.reimpresiones === 1
+  );
+
+  // 16.16 Cancelación: crear orden para probar
+  const ordenCancelarRes = await peticion('/api/publico/taza-miga/ordenes', {
+    method: 'POST',
+    body: JSON.stringify({
+      sucursalId: 1,
+      nombreCliente: 'Cliente Para Cancelar',
+      tipoEntrega: 'MESA',
+      numeroMesa: 3,
+      metodoPago: 'BARRA',
+      lineas: [{ productoId: 1, cantidad: 1, opcionesIds: [1] }]
+    })
+  });
+  const idOrdenCancelar = ordenCancelarRes.data?.id;
+
+  // 16.17 Cancelar sin motivo responde 400
+  const cancelarSinMotivo = await peticion(`/api/kds/pedidos/${idOrdenCancelar}/cancelar`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenBarista}` },
+    body: JSON.stringify({ motivo: '' })
+  });
+  asegurar('16.17 Cancelar pedido sin motivo responde 400 Bad Request (RN-22)', cancelarSinMotivo.status === 400);
+
+  // 16.18 Cancelar con motivo válido desde RECIBIDO
+  const cancelarConMotivo = await peticion(`/api/kds/pedidos/${idOrdenCancelar}/cancelar`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenBarista}` },
+    body: JSON.stringify({ motivo: 'Cliente tuvo que retirarse de urgencia' })
+  });
+  asegurar(
+    '16.18 Cancelar pedido con motivo 200 OK y log en auditoría (HU-16, RN-22, RN-27)',
+    cancelarConMotivo.status === 200 && cancelarConMotivo.data.estado === 'CANCELADO'
+  );
+
+  // 16.19 Barista de otra sucursal intentando operar pedido ajeno responde 404
+  const ataqueSucursal = await peticion(`/api/kds/pedidos/${orden1.id}/cancelar`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenBarista2}` },
+    body: JSON.stringify({ motivo: 'Ataque entre sucursales' })
+  });
+  asegurar('16.19 Barista de otra sucursal no puede modificar pedido ajeno 404 (RN-04)', ataqueSucursal.status === 404);
 
   console.log('\n===============================================================');
   console.log(`  RESUMEN: ${pruebasPasadas} pasadas, ${pruebasFallidas} fallidas`);

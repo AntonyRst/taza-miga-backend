@@ -82,3 +82,23 @@ export const buscarOrdenSchema = z.object({
     .min(2, 'El nombre debe tener al menos 2 caracteres')
     .max(80, 'El nombre no puede exceder 80 caracteres')
 });
+
+/**
+ * Esquema de validación para el cambio de estado de un pedido (HU-14, RN-21).
+ */
+export const cambiarEstadoSchema = z.object({
+  estado: z.enum(['RECIBIDO', 'PREPARACION', 'LISTO', 'ENTREGADO', 'CANCELADO'], {
+    errorMap: () => ({ message: 'Estado inválido' })
+  })
+});
+
+/**
+ * Esquema de validación para la cancelación de un pedido con motivo (HU-16, RN-22).
+ */
+export const cancelarOrdenSchema = z.object({
+  motivo: z
+    .string({ required_error: 'El motivo de cancelación es obligatorio' })
+    .trim()
+    .min(2, 'El motivo de cancelación debe tener al menos 2 caracteres')
+    .max(255, 'El motivo no puede exceder 255 caracteres')
+});

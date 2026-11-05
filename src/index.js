@@ -8,6 +8,7 @@ import grupoOpcionesRoutes from './routes/grupoOpcionesRoutes.js';
 import opcionRoutes from './routes/opcionRoutes.js';
 import productoRoutes from './routes/productoRoutes.js';
 import publicoRoutes from './routes/publicoRoutes.js';
+import kdsRoutes from './routes/kdsRoutes.js';
 import { manejarErrores } from './middlewares/manejarErrores.js';
 
 dotenv.config();
@@ -47,6 +48,9 @@ app.use('/api/productos', productoRoutes);
 
 // Rutas públicas para clientes sin cuenta (HU-05, HU-06)
 app.use('/api/publico', publicoRoutes);
+
+// Rutas del panel KDS del barista (HU-13 a HU-17, RN-21 a RN-24)
+app.use('/api/kds', kdsRoutes);
 
 // Middleware global de manejo de errores
 app.use(manejarErrores);
