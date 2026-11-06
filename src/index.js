@@ -16,11 +16,15 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const origenesFrontend = process.env.FRONTEND_URL
+  ? (process.env.FRONTEND_URL.includes(',')
+      ? process.env.FRONTEND_URL.split(',').map((url) => url.trim())
+      : process.env.FRONTEND_URL)
+  : 'http://localhost:5173';
 
 // CORS configurado solo para el origen del frontend
 app.use(cors({
-  origin: FRONTEND_URL,
+  origin: origenesFrontend,
   credentials: true
 }));
 
