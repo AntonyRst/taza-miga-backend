@@ -1425,3 +1425,37 @@ GET {{baseUrl}}/api/admin/pedidos-historial
 Authorization: Bearer {{tokenBarista}}
 
 
+### ===================================================================
+### 23. HU-24: BITÁCORA DE AUDITORÍA (RN-03, RN-27)
+### Reglas verificadas: RN-03, RN-27
+### ===================================================================
+
+### 23.1 [HU-24] Dueño consulta historial completo de auditoría (200 OK)
+GET {{baseUrl}}/api/admin/auditoria
+Authorization: Bearer {{tokenDueno}}
+
+### 23.2 [HU-24] Filtrar por acción específica (200 OK)
+GET {{baseUrl}}/api/admin/auditoria?accion=CAMBIO_PRECIO
+Authorization: Bearer {{tokenDueno}}
+
+### 23.3 [HU-24] Filtrar por usuario específico (200 OK)
+GET {{baseUrl}}/api/admin/auditoria?usuarioId=1
+Authorization: Bearer {{tokenDueno}}
+
+### 23.4 [HU-24] Filtrar por rango de fechas (200 OK)
+GET {{baseUrl}}/api/admin/auditoria?fechaInicio=2026-01-01&fechaFin=2026-12-31
+Authorization: Bearer {{tokenDueno}}
+
+### 23.5 [HU-24, RN-03] Gerente intentando consultar auditoría responde 403 Forbidden
+GET {{baseUrl}}/api/admin/auditoria
+Authorization: Bearer {{tokenGerente}}
+
+### 23.6 [HU-24, RN-03] Barista intentando consultar auditoría responde 403 Forbidden
+GET {{baseUrl}}/api/admin/auditoria
+Authorization: Bearer {{tokenBarista}}
+
+### 23.7 [HU-24, RN-03] Consulta de auditoría sin token responde 401 Unauthorized
+GET {{baseUrl}}/api/admin/auditoria
+
+
+

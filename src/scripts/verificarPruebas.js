@@ -1553,6 +1553,73 @@ async function correrPruebas() {
     historialBarista.status === 403
   );
 
+  // --- 23. HU-24: Bitácora de Auditoría (RN-03, RN-27) ---
+  console.log('\n--- 23. HU-24: Bitácora de auditoría (RN-03, RN-27) ---');
+
+  // 23.1 Dueño consulta historial completo de auditoría (200 OK)
+  const auditoriaDueno = await peticion('/api/admin/auditoria', {
+    headers: { Authorization: `Bearer ${tokenDueno}` }
+  });
+  asegurar(
+    '23.1 Dueño consulta auditoría 200 OK y devuelve arreglo (HU-24)',
+    auditoriaDueno.status === 200 && Array.isArray(auditoriaDueno.data)
+  );
+
+  // 23.2 Filtrar por acción (200 OK)
+  const auditoriaAccion = await peticion('/api/admin/auditoria?accion=CAMBIO_PRECIO', {
+    headers: { Authorization: `Bearer ${tokenDueno}` }
+  });
+  asegurar(
+    '23.2 Filtrar por acción CAMBIO_PRECIO 200 OK (HU-24)',
+    auditoriaAccion.status === 200 &&
+      auditoriaAccion.data.every((l) => l.accion === 'CAMBIO_PRECIO')
+  );
+
+  // 23.3 Filtrar por usuario (200 OK)
+  const auditoriaUsuario = await peticion('/api/admin/auditoria?usuarioId=1', {
+    headers: { Authorization: `Bearer ${tokenDueno}` }
+  });
+  asegurar(
+    '23.3 Filtrar por usuarioId=1 200 OK (HU-24)',
+    auditoriaUsuario.status === 200 &&
+      auditoriaUsuario.data.every((l) => l.usuarioId === 1)
+  );
+
+  // 23.4 Filtrar por rango de fechas (200 OK)
+  const auditoriaFechas = await peticion(
+    '/api/admin/auditoria?fechaInicio=2026-01-01&fechaFin=2026-12-31',
+    { headers: { Authorization: `Bearer ${tokenDueno}` } }
+  );
+  asegurar(
+    '23.4 Filtrar por rango de fechas 200 OK (HU-24)',
+    auditoriaFechas.status === 200 && Array.isArray(auditoriaFechas.data)
+  );
+
+  // 23.5 Gerente intentando consultar auditoría responde 403 Forbidden (RN-03)
+  const auditoriaGerente = await peticion('/api/admin/auditoria', {
+    headers: { Authorization: `Bearer ${tokenGerente}` }
+  });
+  asegurar(
+    '23.5 Gerente intentando consultar auditoría responde 403 Forbidden (RN-03)',
+    auditoriaGerente.status === 403
+  );
+
+  // 23.6 Barista intentando consultar auditoría responde 403 Forbidden (RN-03)
+  const auditoriaBarista = await peticion('/api/admin/auditoria', {
+    headers: { Authorization: `Bearer ${tokenBarista}` }
+  });
+  asegurar(
+    '23.6 Barista intentando consultar auditoría responde 403 Forbidden (RN-03)',
+    auditoriaBarista.status === 403
+  );
+
+  // 23.7 Consulta sin token responde 401 Unauthorized
+  const auditoriaSinToken = await peticion('/api/admin/auditoria');
+  asegurar(
+    '23.7 Consulta de auditoría sin token responde 401 Unauthorized',
+    auditoriaSinToken.status === 401
+  );
+
   console.log('\n===============================================================');
   console.log(`  RESUMEN: ${pruebasPasadas} pasadas, ${pruebasFallidas} fallidas`);
   console.log('===============================================================\n');

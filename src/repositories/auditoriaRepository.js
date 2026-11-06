@@ -59,12 +59,12 @@ export const auditoriaRepository = {
 
     if (fechaInicio) {
       sql += ' AND a.creado_en >= ?';
-      params.push(fechaInicio);
+      params.push(fechaInicio.includes(':') ? fechaInicio : `${fechaInicio} 00:00:00`);
     }
 
     if (fechaFin) {
       sql += ' AND a.creado_en <= ?';
-      params.push(fechaFin);
+      params.push(fechaFin.includes(':') ? fechaFin : `${fechaFin} 23:59:59`);
     }
 
     sql += ' ORDER BY a.creado_en DESC';

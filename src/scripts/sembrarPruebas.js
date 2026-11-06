@@ -63,7 +63,7 @@ async function sembrar() {
     await conexion.query(`
       INSERT INTO usuarios (negocio_id, sucursal_id, nombre, cargo, telefono, acceso_sistema, correo, password_hash, rol, debe_cambiar_password, activo)
       VALUES (?, NULL, 'Dueño Principal', 'Dueño', '7000-0001', TRUE, 'dueno@tazamiga.com', ?, 'DUENO', FALSE, TRUE)
-      ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), activo = TRUE, debe_cambiar_password = FALSE
+      ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash), rol = 'DUENO', sucursal_id = NULL, activo = TRUE, debe_cambiar_password = FALSE
     `, [negocio1Id, hashDueno]);
 
     // Gerente de Taza & Miga (RN-04, RN-06)

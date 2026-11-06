@@ -33,8 +33,20 @@ export const historialPedidosQuerySchema = z.object({
  * Esquema para consultar logs de auditoría (HU-24, RN-27).
  */
 export const auditoriaQuerySchema = z.object({
-  usuarioId: z.coerce.number().int().positive().optional(),
-  accion: z.string().trim().optional(),
-  fechaInicio: z.string().optional(),
-  fechaFin: z.string().optional()
+  usuarioId: z.preprocess(
+    (val) => (val === '' || val === undefined ? undefined : Number(val)),
+    z.number().int().positive().optional()
+  ),
+  accion: z.preprocess(
+    (val) => (val === '' ? undefined : val),
+    z.string().trim().optional()
+  ),
+  fechaInicio: z.preprocess(
+    (val) => (val === '' ? undefined : val),
+    z.string().optional()
+  ),
+  fechaFin: z.preprocess(
+    (val) => (val === '' ? undefined : val),
+    z.string().optional()
+  )
 });
