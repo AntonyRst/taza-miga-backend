@@ -11,6 +11,7 @@
     "sembrar-menu": "node src/scripts/sembrarMenu.js",
     "sembrar:demo": "node src/scripts/sembrarDemo.js",
     "sembrar-demo": "node src/scripts/sembrarDemo.js",
+    "verificar-calculos": "node src/scripts/verificarMetricasCalculo.js",
     "verificar-pruebas": "node src/scripts/verificarPruebas.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
