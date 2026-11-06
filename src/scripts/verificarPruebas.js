@@ -1261,6 +1261,50 @@ async function correrPruebas() {
     sucursalInexistente.status === 404
   );
 
+  // 19.12 Dueño crea sucursal en /api/sucursales (201 Created)
+  const crearEnSucursales = await peticion('/api/sucursales', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenDueno}` },
+    body: JSON.stringify({
+      nombre: 'Sucursal Vía Directa',
+      direccion: 'Avenida Jerusalén #55, San Salvador',
+      telefono: '2222-9999',
+      cantidadMesas: 12,
+      latitud: 13.7011,
+      longitud: -89.2455
+    })
+  });
+  asegurar(
+    '19.12 Dueño crea sucursal en /api/sucursales 201 Created (HU-20, RN-25)',
+    crearEnSucursales.status === 201 && crearEnSucursales.data.nombre === 'Sucursal Vía Directa'
+  );
+
+  // 19.13 Gerente intenta crear sucursal en /api/sucursales responde 403 Forbidden (RN-05)
+  const gerenteCrearEnSucursales = await peticion('/api/sucursales', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenGerente}` },
+    body: JSON.stringify({
+      nombre: 'Sucursal Denegada',
+      direccion: 'Calle Sin Permiso 403',
+      cantidadMesas: 5
+    })
+  });
+  asegurar(
+    '19.13 Gerente intenta crear sucursal en /api/sucursales responde 403 Forbidden (RN-05)',
+    gerenteCrearEnSucursales.status === 403
+  );
+
+  // 19.14 Ruta no mapeada responde 404 en formato JSON seguro
+  const rutaNoMapeada = await peticion('/api/ruta-que-no-existe', {
+    headers: { Authorization: `Bearer ${tokenDueno}` }
+  });
+  asegurar(
+    '19.14 Ruta no mapeada responde 404 en formato JSON seguro (no HTML)',
+    rutaNoMapeada.status === 404 &&
+      typeof rutaNoMapeada.data === 'object' &&
+      Boolean(rutaNoMapeada.data.error || rutaNoMapeada.data.mensaje)
+  );
+
   // 20. Trasladar personal entre sucursales (HU-21, RN-04, RN-05, RN-26, RN-27)
   console.log('\n--- 20. Trasladar personal entre sucursales (HU-21, RN-04, RN-05, RN-26, RN-27) ---');
 

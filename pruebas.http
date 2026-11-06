@@ -1252,6 +1252,35 @@ Authorization: Bearer {{tokenDueno}}
   "activa": false
 }
 
+### 19.12 [HU-20, RN-25] Dueño crea sucursal en /api/sucursales (201 Created)
+POST {{baseUrl}}/api/sucursales
+Content-Type: application/json
+Authorization: Bearer {{tokenDueno}}
+
+{
+  "nombre": "Sucursal Vía Directa",
+  "direccion": "Avenida Jerusalén #55, San Salvador",
+  "telefono": "2222-9999",
+  "cantidadMesas": 12,
+  "latitud": 13.7011,
+  "longitud": -89.2455
+}
+
+### 19.13 [RN-05] Gerente intenta crear sucursal en /api/sucursales (403 Forbidden)
+POST {{baseUrl}}/api/sucursales
+Content-Type: application/json
+Authorization: Bearer {{tokenGerente}}
+
+{
+  "nombre": "Sucursal Denegada",
+  "direccion": "Calle Sin Permiso 403",
+  "cantidadMesas": 5
+}
+
+### 19.14 [Error 404 JSON] Petición a endpoint no mapeado responde JSON seguro (404 Not Found)
+GET {{baseUrl}}/api/ruta-que-no-existe
+Authorization: Bearer {{tokenDueno}}
+
 
 ### ===================================================================
 ### 20. HU-21: TRASLADAR PERSONAL ENTRE SUCURSALES

@@ -3,7 +3,6 @@ import { z } from 'zod';
 import { verificarToken } from '../middlewares/verificarToken.js';
 import { permitirRoles } from '../middlewares/permitirRoles.js';
 import { sucursalService } from '../services/sucursalService.js';
-import { sucursalAdminService } from '../services/sucursalAdminService.js';
 import { usuarioService } from '../services/usuarioService.js';
 import { personalService } from '../services/personalService.js';
 import { reportesService } from '../services/reportesService.js';
@@ -164,7 +163,7 @@ router.post('/personal/:id/trasladar', async (req, res, next) => {
  */
 router.get('/sucursales', async (req, res, next) => {
   try {
-    const sucursales = await sucursalAdminService.listarTodas(req.usuario);
+    const sucursales = await sucursalService.listarTodas(req.usuario);
     res.json(sucursales);
   } catch (error) {
     next(error);
@@ -192,7 +191,7 @@ router.get('/sucursales/:id', async (req, res, next) => {
 router.post('/sucursales', async (req, res, next) => {
   try {
     const datos = sucursalSchema.parse(req.body);
-    const creada = await sucursalAdminService.crearSucursal(req.usuario, datos);
+    const creada = await sucursalService.crearSucursal(req.usuario, datos);
     res.status(201).json(creada);
   } catch (error) {
     next(error);
@@ -207,7 +206,7 @@ router.put('/sucursales/:id', async (req, res, next) => {
   try {
     const id = z.coerce.number().int().positive().parse(req.params.id);
     const datos = sucursalSchema.parse(req.body);
-    const actualizada = await sucursalAdminService.editarSucursal(req.usuario, id, datos);
+    const actualizada = await sucursalService.editarSucursal(req.usuario, id, datos);
     res.json(actualizada);
   } catch (error) {
     next(error);
@@ -222,7 +221,7 @@ router.patch('/sucursales/:id/activa', async (req, res, next) => {
   try {
     const id = z.coerce.number().int().positive().parse(req.params.id);
     const { activa } = z.object({ activa: z.boolean() }).parse(req.body);
-    const resultado = await sucursalAdminService.actualizarActiva(req.usuario, id, activa);
+    const resultado = await sucursalService.actualizarActiva(req.usuario, id, activa);
     res.json(resultado);
   } catch (error) {
     next(error);
