@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import pool from '../db.js';
 
-// Esquema de validación para los datos ingresados en la inicialización
+// Esquema de validación para los datos ingresados en la inicialización completa
 const esquemaInicializacion = z.object({
   negocioNombre: z.string().trim().min(2, 'El nombre del negocio debe tener al menos 2 caracteres'),
   negocioSlug: z.string().trim().min(2, 'El slug debe tener al menos 2 caracteres')
@@ -13,6 +13,14 @@ const esquemaInicializacion = z.object({
   sucursalDireccion: z.string().trim().min(5, 'La dirección debe tener al menos 5 caracteres'),
   sucursalTelefono: z.string().trim().optional(),
   sucursalMesas: z.coerce.number().int().positive('La cantidad de mesas debe ser un número entero mayor que 0'),
+  duenoNombre: z.string().trim().min(2, 'El nombre del dueño debe tener al menos 2 caracteres'),
+  duenoTelefono: z.string().trim().min(6, 'El teléfono debe tener al menos 6 caracteres'),
+  duenoCorreo: z.string().trim().email('El correo electrónico no es válido'),
+  duenoPassword: z.string().min(8, 'La contraseña debe tener un mínimo de 8 caracteres') // RN-07
+});
+
+// Esquema de validación para el alta de Dueño sobre un negocio preexistente
+const esquemaDueno = z.object({
   duenoNombre: z.string().trim().min(2, 'El nombre del dueño debe tener al menos 2 caracteres'),
   duenoTelefono: z.string().trim().min(6, 'El teléfono debe tener al menos 6 caracteres'),
   duenoCorreo: z.string().trim().email('El correo electrónico no es válido'),
@@ -69,12 +77,81 @@ async function inicializar() {
   const conexion = await pool.getConnection();
 
   try {
-    // 1. Verificar si ya existe algún negocio en el sistema
-    const [negociosExistentes] = await conexion.query('SELECT COUNT(*) AS total FROM negocios');
-    if (negociosExistentes[0].total > 0) {
+    // 1. Verificar si ya existe algún Dueño activo en el sistema
+    const [duenosExistentes] = await conexion.query(
+      "SELECT COUNT(*) AS total FROM usuarios WHERE rol = 'DUENO' AND activo = TRUE"
+    );
+    if (duenosExistentes[0].total > 0) {
       console.error('❌ Error: El sistema ya ha sido inicializado previamente.');
       console.error('Por seguridad, este script solo se puede ejecutar una vez.');
       process.exit(1);
+    }
+
+    // 2. Verificar si ya existe el negocio y su catálogo preconfigurado
+    const [negociosExistentes] = await conexion.query('SELECT id, nombre, slug FROM negocios ORDER BY id ASC LIMIT 1');
+    const negocioPreexistente = negociosExistentes.length > 0 ? negociosExistentes[0] : null;
+
+    if (negocioPreexistente) {
+      console.log(`ℹ️ Negocio detectado: "${negocioPreexistente.nombre}" (ID: ${negocioPreexistente.id}, Slug: ${negocioPreexistente.slug}) con catálogo cargado.`);
+      console.log('Se procederá a dar de alta la cuenta del Dueño/Administrador principal para este negocio.\n');
+
+      const rl = readline.createInterface({ input, output });
+
+      console.log('--- Cuenta del Propietario (Dueño) ---');
+      const duenoNombre = (await rl.question('Nombre completo del dueño: ')).trim();
+      const duenoTelefono = (await rl.question('Teléfono de contacto (para validación): ')).trim();
+      const duenoCorreo = (await rl.question('Correo electrónico (será el usuario de acceso): ')).trim();
+
+      rl.close();
+
+      const duenoPassword = (await pedirPassword('Contraseña del dueño (mínimo 8 caracteres): ')).trim();
+      const duenoPasswordConfirm = (await pedirPassword('Confirmar contraseña: ')).trim();
+
+      if (duenoPassword !== duenoPasswordConfirm) {
+        console.error('\n❌ Error: Las contraseñas no coinciden.');
+        process.exit(1);
+      }
+
+      const datosValidados = esquemaDueno.parse({
+        duenoNombre,
+        duenoTelefono,
+        duenoCorreo,
+        duenoPassword
+      });
+
+      console.log('\nGuardando información en la base de datos...');
+      await conexion.beginTransaction();
+
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(datosValidados.duenoPassword, salt);
+
+      const [resUsuario] = await conexion.query(
+        `INSERT INTO usuarios (
+          negocio_id, sucursal_id, nombre, cargo, telefono, acceso_sistema,
+          correo, password_hash, rol, debe_cambiar_password, activo
+        ) VALUES (?, NULL, ?, 'Dueño', ?, TRUE, ?, ?, 'DUENO', FALSE, TRUE)`,
+        [
+          negocioPreexistente.id,
+          datosValidados.duenoNombre,
+          datosValidados.duenoTelefono,
+          datosValidados.duenoCorreo,
+          passwordHash
+        ]
+      );
+      const usuarioId = resUsuario.insertId;
+
+      await conexion.query(
+        'INSERT INTO auditoria_logs (negocio_id, usuario_id, accion, descripcion) VALUES (?, ?, ?, ?)',
+        [negocioPreexistente.id, usuarioId, 'INICIALIZACION_SISTEMA', 'Sistema inicializado: alta de cuenta de dueño principal']
+      );
+
+      await conexion.commit();
+
+      console.log('\n✅ ¡Sistema inicializado exitosamente!');
+      console.log(`- Negocio: ${negocioPreexistente.nombre} (ID: ${negocioPreexistente.id}, Slug: ${negocioPreexistente.slug})`);
+      console.log(`- Dueño: ${datosValidados.duenoNombre} (${datosValidados.duenoCorreo}, Rol: DUENO)`);
+      console.log('\nPuedes iniciar sesión con estas credenciales en /staff-access.');
+      return;
     }
 
     const rl = readline.createInterface({ input, output });
