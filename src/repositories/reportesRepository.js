@@ -294,7 +294,7 @@ export const reportesRepository = {
   /**
    * Consulta el registro histórico de pedidos y tickets (HU-23).
    */
-  async listarHistorialPedidos(negocioId, { sucursalId, estado, metodoPago, fechaInicio, fechaFin, q } = {}) {
+  async listarHistorialPedidos(negocioId, { sucursalId, baristaId, estado, metodoPago, fechaInicio, fechaFin, q } = {}) {
     let sql = `
       SELECT
         o.id,
@@ -317,10 +317,13 @@ export const reportesRepository = {
         o.entregado_en AS entregadoEn,
         o.creado_en AS creadoEn,
         t.id AS ticketId,
-        t.reimpresiones AS ticketReimpresiones
+        t.reimpresiones AS ticketReimpresiones,
+        t.generado_por AS baristaId,
+        u.nombre AS baristaNombre
       FROM ordenes o
       INNER JOIN sucursales s ON o.sucursal_id = s.id
       LEFT JOIN tickets t ON o.id = t.orden_id
+      LEFT JOIN usuarios u ON t.generado_por = u.id
       WHERE o.negocio_id = ?
     `;
     const params = [negocioId];
@@ -328,6 +331,10 @@ export const reportesRepository = {
     if (sucursalId) {
       sql += ' AND o.sucursal_id = ?';
       params.push(sucursalId);
+    }
+    if (baristaId) {
+      sql += ' AND t.generado_por = ?';
+      params.push(baristaId);
     }
     if (estado && estado !== 'TODOS') {
       sql += ' AND o.estado = ?';
@@ -357,7 +364,8 @@ export const reportesRepository = {
       ...o,
       total: Number(o.total),
       tieneTicket: Boolean(o.ticketId),
-      ticketReimpresiones: o.ticketReimpresiones ? Number(o.ticketReimpresiones) : 0
+      ticketReimpresiones: o.ticketReimpresiones ? Number(o.ticketReimpresiones) : 0,
+      baristaNombre: o.baristaNombre || null
     }));
   }
 };

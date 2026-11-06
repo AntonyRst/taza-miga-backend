@@ -95,6 +95,7 @@ export const reportesService = {
 
   /**
    * Consulta el registro histórico de pedidos y tickets (HU-23).
+   * RN-04: El gerente solo ve pedidos de su propia sucursal.
    */
   async listarHistorialPedidos(usuario, filtros = {}) {
     let sucursalFinal = filtros.sucursalId ? Number(filtros.sucursalId) : null;
@@ -104,8 +105,19 @@ export const reportesService = {
       sucursalFinal = usuario.sucursal_id;
     }
 
+    const fechaInicio =
+      filtros.fechaInicio && /^\d{4}-\d{2}-\d{2}$/.test(filtros.fechaInicio)
+        ? `${filtros.fechaInicio} 00:00:00`
+        : filtros.fechaInicio || null;
+    const fechaFin =
+      filtros.fechaFin && /^\d{4}-\d{2}-\d{2}$/.test(filtros.fechaFin)
+        ? `${filtros.fechaFin} 23:59:59`
+        : filtros.fechaFin || null;
+
     return reportesRepository.listarHistorialPedidos(usuario.negocio_id, {
       ...filtros,
+      fechaInicio,
+      fechaFin,
       sucursalId: sucursalFinal
     });
   }

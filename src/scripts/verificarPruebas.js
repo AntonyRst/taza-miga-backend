@@ -1472,6 +1472,87 @@ async function correrPruebas() {
     metricasPeriodoInvalido.status === 400
   );
 
+  // 22. Historial de pedidos y tickets (HU-23, RN-04, RN-24)
+  console.log('\n--- 22. Historial de pedidos y tickets (HU-23, RN-04, RN-24) ---');
+
+  // 22.1 Dueño consulta historial completo de pedidos (200 OK)
+  const historialGlobal = await peticion('/api/admin/pedidos-historial', {
+    headers: { Authorization: `Bearer ${tokenDueno}` }
+  });
+  asegurar(
+    '22.1 Dueño consulta historial completo de pedidos 200 OK (HU-23)',
+    historialGlobal.status === 200 && Array.isArray(historialGlobal.data) && historialGlobal.data.length > 0
+  );
+
+  // 22.2 Gerente consulta historial y solo ve su sucursal (RN-04)
+  const historialGerente = await peticion('/api/admin/pedidos-historial', {
+    headers: { Authorization: `Bearer ${tokenGerente}` }
+  });
+  asegurar(
+    '22.2 Gerente consulta historial y solo ve su sucursal 200 OK (RN-04)',
+    historialGerente.status === 200 &&
+      Array.isArray(historialGerente.data) &&
+      historialGerente.data.every((p) => p.sucursalId === 1)
+  );
+
+  // 22.3 Gerente intenta filtrar sucursal ajena y el servidor lo restringe a la suya (RN-04)
+  const historialGerenteIntruso = await peticion('/api/admin/pedidos-historial?sucursalId=999', {
+    headers: { Authorization: `Bearer ${tokenGerente}` }
+  });
+  asegurar(
+    '22.3 Gerente intentando filtrar sucursal ajena es restringido a la suya 200 OK (RN-04)',
+    historialGerenteIntruso.status === 200 &&
+      historialGerenteIntruso.data.every((p) => p.sucursalId === 1)
+  );
+
+  // 22.4 Filtrar por estado ENTREGADO (200 OK)
+  const historialEntregados = await peticion('/api/admin/pedidos-historial?estado=ENTREGADO', {
+    headers: { Authorization: `Bearer ${tokenDueno}` }
+  });
+  asegurar(
+    '22.4 Filtrar por estado ENTREGADO 200 OK (HU-23)',
+    historialEntregados.status === 200 &&
+      historialEntregados.data.every((p) => p.estado === 'ENTREGADO')
+  );
+
+  // 22.5 Filtrar por método de pago BARRA (200 OK)
+  const historialBarra = await peticion('/api/admin/pedidos-historial?metodoPago=BARRA', {
+    headers: { Authorization: `Bearer ${tokenDueno}` }
+  });
+  asegurar(
+    '22.5 Filtrar por método de pago BARRA 200 OK (HU-23)',
+    historialBarra.status === 200 &&
+      historialBarra.data.every((p) => p.metodoPago === 'BARRA')
+  );
+
+  // 22.6 Filtrar por rango de fechas (200 OK)
+  const historialFechas = await peticion(
+    '/api/admin/pedidos-historial?fechaInicio=2026-01-01&fechaFin=2026-12-31',
+    { headers: { Authorization: `Bearer ${tokenDueno}` } }
+  );
+  asegurar(
+    '22.6 Filtrar por rango de fechas 200 OK (HU-23)',
+    historialFechas.status === 200 && Array.isArray(historialFechas.data)
+  );
+
+  // 22.7 Búsqueda por texto (200 OK)
+  const historialBusqueda = await peticion('/api/admin/pedidos-historial?q=1', {
+    headers: { Authorization: `Bearer ${tokenDueno}` }
+  });
+  asegurar(
+    '22.7 Búsqueda por texto o número de orden 200 OK (HU-23)',
+    historialBusqueda.status === 200 && Array.isArray(historialBusqueda.data)
+  );
+
+  // 22.8 Barista intentando acceder a pedidos-historial responde 403 Forbidden (RN-03)
+  const historialBarista = await peticion('/api/admin/pedidos-historial', {
+    headers: { Authorization: `Bearer ${tokenBarista}` }
+  });
+  asegurar(
+    '22.8 Barista intentando acceder a pedidos-historial responde 403 Forbidden (RN-03)',
+    historialBarista.status === 403
+  );
+
   console.log('\n===============================================================');
   console.log(`  RESUMEN: ${pruebasPasadas} pasadas, ${pruebasFallidas} fallidas`);
   console.log('===============================================================\n');

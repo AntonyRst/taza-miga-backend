@@ -25,6 +25,7 @@ export const historialPedidosQuerySchema = z.object({
   fechaInicio: z.string().optional(),
   fechaFin: z.string().optional(),
   sucursalId: z.coerce.number().int().positive().optional(),
+  baristaId: z.coerce.number().int().positive().optional(),
   q: z.string().trim().optional()
 });
 
