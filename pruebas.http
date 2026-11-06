@@ -1350,7 +1350,39 @@ Authorization: Bearer {{tokenDueno}}
 }
 
 
+### ===================================================================
+### 21. HU-22: MÉTRICAS Y DASHBOARD DE VENTAS (RN-04, RN-30 A RN-35)
+### Reglas verificadas: RN-04, RN-30, RN-31, RN-32, RN-33, RN-34 y RN-35
+### ===================================================================
 
+### 21.1 [HU-22] Dueño consulta métricas globales del negocio (200 OK)
+GET {{baseUrl}}/api/admin/metricas?periodo=mes
+Authorization: Bearer {{tokenDueno}}
 
+### 21.2 [HU-22, RN-35] Dueño consulta métricas filtrando por sucursal específica (200 OK)
+GET {{baseUrl}}/api/admin/metricas?sucursalId=1&periodo=mes
+Authorization: Bearer {{tokenDueno}}
 
+### 21.3 [HU-22, RN-04] Gerente consulta métricas y solo ve su sucursal (200 OK)
+GET {{baseUrl}}/api/admin/metricas?periodo=mes
+Authorization: Bearer {{tokenGerente}}
+
+### 21.4 [HU-22, RN-04] Gerente intenta consultar métricas de otra sucursal y el servidor lo restringe a la suya (200 OK)
+GET {{baseUrl}}/api/admin/metricas?sucursalId=999&periodo=mes
+Authorization: Bearer {{tokenGerente}}
+
+### 21.5 [HU-22, RN-03] Barista intenta consultar métricas responde 403 Forbidden
+GET {{baseUrl}}/api/admin/metricas
+Authorization: Bearer {{tokenBarista}}
+
+### 21.6 [HU-22, RN-03] Consulta de métricas sin token responde 401 Unauthorized
+GET {{baseUrl}}/api/admin/metricas
+
+### 21.7 [HU-22, RN-30 a RN-35] Consulta con rango personalizado de fechas (200 OK)
+GET {{baseUrl}}/api/admin/metricas?periodo=personalizado&fechaInicio=2026-01-01&fechaFin=2026-12-31
+Authorization: Bearer {{tokenDueno}}
+
+### 21.8 [HU-22] Parámetro de periodo inválido responde 400 Bad Request
+GET {{baseUrl}}/api/admin/metricas?periodo=invalido
+Authorization: Bearer {{tokenDueno}}
 

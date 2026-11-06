@@ -7,11 +7,10 @@ function calcularRangoFechas(periodo, inicioManual, finManual) {
   const ahora = new Date();
 
   if (periodo === 'hoy') {
-    const inicio = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 0, 0, 0);
-    const fin = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 23, 59, 59);
+    const hoyStr = ahora.toISOString().slice(0, 10);
     return {
-      fechaInicio: inicio.toISOString().slice(0, 19).replace('T', ' '),
-      fechaFin: fin.toISOString().slice(0, 19).replace('T', ' ')
+      fechaInicio: `${hoyStr} 00:00:00`,
+      fechaFin: `${hoyStr} 23:59:59`
     };
   }
 
@@ -24,17 +23,26 @@ function calcularRangoFechas(periodo, inicioManual, finManual) {
   }
 
   if (periodo === 'mes') {
-    const inicio = new Date(ahora.getFullYear(), ahora.getMonth(), 1, 0, 0, 0);
+    const hoyStr = ahora.toISOString().slice(0, 7);
     return {
-      fechaInicio: inicio.toISOString().slice(0, 19).replace('T', ' '),
+      fechaInicio: `${hoyStr}-01 00:00:00`,
       fechaFin: ahora.toISOString().slice(0, 19).replace('T', ' ')
     };
   }
 
   // Personalizado
+  const inicio =
+    inicioManual && /^\d{4}-\d{2}-\d{2}$/.test(inicioManual)
+      ? `${inicioManual} 00:00:00`
+      : inicioManual || null;
+  const fin =
+    finManual && /^\d{4}-\d{2}-\d{2}$/.test(finManual)
+      ? `${finManual} 23:59:59`
+      : finManual || null;
+
   return {
-    fechaInicio: inicioManual || null,
-    fechaFin: finManual || null
+    fechaInicio: inicio,
+    fechaFin: fin
   };
 }
 

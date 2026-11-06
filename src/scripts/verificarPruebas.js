@@ -1395,6 +1395,83 @@ async function correrPruebas() {
     restaurarSucursal.status === 200 && restaurarSucursal.data.nuevaSucursalId === 1
   );
 
+  // 21. Métricas y dashboard de ventas (HU-22, RN-04, RN-30 a RN-35)
+  console.log('\n--- 21. Métricas y dashboard de ventas (HU-22, RN-04, RN-30 a RN-35) ---');
+
+  // 21.1 Dueño consulta métricas globales del negocio
+  const metricasGlobales = await peticion('/api/admin/metricas?periodo=mes', {
+    headers: { Authorization: `Bearer ${tokenDueno}` }
+  });
+  asegurar(
+    '21.1 Dueño consulta métricas globales del negocio 200 OK (HU-22, RN-30 a RN-35)',
+    metricasGlobales.status === 200 &&
+      typeof metricasGlobales.data.cifras?.totalVentas === 'number' &&
+      Array.isArray(metricasGlobales.data.productosMasVendidos) &&
+      typeof metricasGlobales.data.desgloses === 'object'
+  );
+
+  // 21.2 Dueño consulta métricas filtradas por sucursal
+  const metricasSucursal = await peticion('/api/admin/metricas?sucursalId=1&periodo=mes', {
+    headers: { Authorization: `Bearer ${tokenDueno}` }
+  });
+  asegurar(
+    '21.2 Dueño consulta métricas filtrando por sucursal específica 200 OK (RN-35)',
+    metricasSucursal.status === 200 && metricasSucursal.data.sucursalId === 1
+  );
+
+  // 21.3 Gerente consulta métricas y solo ve su propia sucursal (RN-04)
+  const metricasGerente = await peticion('/api/admin/metricas?periodo=mes', {
+    headers: { Authorization: `Bearer ${tokenGerente}` }
+  });
+  asegurar(
+    '21.3 Gerente consulta métricas y solo ve su sucursal 200 OK (RN-04)',
+    metricasGerente.status === 200 && metricasGerente.data.sucursalId === 1
+  );
+
+  // 21.4 Gerente intenta consultar métricas de otra sucursal y el servidor lo restringe a la suya (RN-04)
+  const metricasGerenteIntruso = await peticion('/api/admin/metricas?sucursalId=999&periodo=mes', {
+    headers: { Authorization: `Bearer ${tokenGerente}` }
+  });
+  asegurar(
+    '21.4 Gerente intentando filtrar sucursal ajena es restringido a la suya 200 OK (RN-04)',
+    metricasGerenteIntruso.status === 200 && metricasGerenteIntruso.data.sucursalId === 1
+  );
+
+  // 21.5 Barista intenta consultar métricas responde 403 Forbidden (RN-03)
+  const metricasBarista = await peticion('/api/admin/metricas', {
+    headers: { Authorization: `Bearer ${tokenBarista}` }
+  });
+  asegurar(
+    '21.5 Barista intentando consultar métricas responde 403 Forbidden (RN-03)',
+    metricasBarista.status === 403
+  );
+
+  // 21.6 Consulta sin token responde 401 Unauthorized
+  const metricasSinToken = await peticion('/api/admin/metricas');
+  asegurar(
+    '21.6 Consulta de métricas sin token responde 401 Unauthorized',
+    metricasSinToken.status === 401
+  );
+
+  // 21.7 Consulta con rango personalizado de fechas (200 OK)
+  const metricasPersonalizadas = await peticion(
+    '/api/admin/metricas?periodo=personalizado&fechaInicio=2026-01-01&fechaFin=2026-12-31',
+    { headers: { Authorization: `Bearer ${tokenDueno}` } }
+  );
+  asegurar(
+    '21.7 Consulta con rango personalizado de fechas 200 OK (HU-22)',
+    metricasPersonalizadas.status === 200 && metricasPersonalizadas.data.periodo === 'personalizado'
+  );
+
+  // 21.8 Parámetro de periodo inválido responde 400 Bad Request
+  const metricasPeriodoInvalido = await peticion('/api/admin/metricas?periodo=invalido', {
+    headers: { Authorization: `Bearer ${tokenDueno}` }
+  });
+  asegurar(
+    '21.8 Periodo inválido responde 400 Bad Request',
+    metricasPeriodoInvalido.status === 400
+  );
+
   console.log('\n===============================================================');
   console.log(`  RESUMEN: ${pruebasPasadas} pasadas, ${pruebasFallidas} fallidas`);
   console.log('===============================================================\n');
