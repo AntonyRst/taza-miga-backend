@@ -6,6 +6,9 @@
 
 ### Variables globales
 @baseUrl = http://localhost:3001
+@tokenMesa1 = 9ba8682f41a8d298bd65acb5b5b416fd463c2e493f37fdc7ead83e8a43e5e4df
+@tokenMesa2 = 247ddfad511322efc2d1959f2758d91bb1ddab45c39a87c00a456992d9cfb81b
+@tokenMesa3 = 82357730450c04d95eecd0eb7750d25f81acfc6b8f3610c733cf576f95b8c788
 
 
 ### ===================================================================
@@ -511,7 +514,7 @@ GET {{baseUrl}}/api/publico/negocio-inexistente/menu
 ### 14. CREACIÓN DE PEDIDOS (HU-11, RN-13, RN-14, RN-15, RN-16, RN-17, RN-18, RN-19, RN-23)
 ### ===================================================================
 
-### 14.1 [HU-11, RN-18, RN-23] Crear pedido en mesa con método BARRA (201 Created -> SIN_PAGAR)
+### 14.1 [HU-11, RN-18, RN-23] Crear pedido en mesa con método BARRA y QR verificado (201 Created -> SIN_PAGAR)
 # @name crearPedidoBarra
 POST {{baseUrl}}/api/publico/taza-miga/ordenes
 Content-Type: application/json
@@ -521,6 +524,7 @@ Content-Type: application/json
   "nombreCliente": "Ana Torres",
   "tipoEntrega": "MESA",
   "numeroMesa": 2,
+  "tokenMesa": "{{tokenMesa2}}",
   "metodoPago": "BARRA",
   "lineas": [
     {
@@ -568,6 +572,7 @@ Content-Type: application/json
   "nombreCliente": "Cliente Tramposo",
   "tipoEntrega": "MESA",
   "numeroMesa": 1,
+  "tokenMesa": "{{tokenMesa1}}",
   "metodoPago": "BARRA",
   "total": 0.01,
   "lineas": [
@@ -589,6 +594,7 @@ Content-Type: application/json
   "nombreCliente": "Carlos Mesa 99",
   "tipoEntrega": "MESA",
   "numeroMesa": 99,
+  "tokenMesa": "token_invalido",
   "metodoPago": "BARRA",
   "lineas": [
     {
@@ -608,7 +614,7 @@ Content-Type: application/json
   "nombreCliente": "Hora Pasada",
   "tipoEntrega": "LLEVAR",
   "horaRecogida": "2020-01-01T10:00:00Z",
-  "metodoPago": "BARRA",
+  "metodoPago": "TARJETA_DEMO",
   "lineas": [
     {
       "productoId": 1,
@@ -627,6 +633,7 @@ Content-Type: application/json
   "nombreCliente": "Sin Productos",
   "tipoEntrega": "MESA",
   "numeroMesa": 1,
+  "tokenMesa": "{{tokenMesa1}}",
   "metodoPago": "BARRA",
   "lineas": []
 }
@@ -640,6 +647,7 @@ Content-Type: application/json
   "nombreCliente": "Demasiadas Unidades",
   "tipoEntrega": "MESA",
   "numeroMesa": 1,
+  "tokenMesa": "{{tokenMesa1}}",
   "metodoPago": "BARRA",
   "lineas": [
     {
@@ -659,6 +667,7 @@ Content-Type: application/json
   "nombreCliente": "A",
   "tipoEntrega": "MESA",
   "numeroMesa": 1,
+  "tokenMesa": "{{tokenMesa1}}",
   "metodoPago": "BARRA",
   "lineas": [
     {
@@ -678,12 +687,70 @@ Content-Type: application/json
   "nombreCliente": "Sin Leche",
   "tipoEntrega": "MESA",
   "numeroMesa": 1,
+  "tokenMesa": "{{tokenMesa1}}",
   "metodoPago": "BARRA",
   "lineas": [
     {
       "productoId": 1,
       "cantidad": 1,
       "opcionesIds": []
+    }
+  ]
+}
+
+### 14.10 [RN-17] Pedido en MESA sin token QR de mesa (403 Forbidden)
+POST {{baseUrl}}/api/publico/taza-miga/ordenes
+Content-Type: application/json
+
+{
+  "sucursalId": 1,
+  "nombreCliente": "Sin Token",
+  "tipoEntrega": "MESA",
+  "numeroMesa": 1,
+  "metodoPago": "BARRA",
+  "lineas": [
+    {
+      "productoId": 1,
+      "cantidad": 1,
+      "opcionesIds": [1]
+    }
+  ]
+}
+
+### 14.11 [RN-17] Pedido en MESA con token QR falsificado o inválido (403 Forbidden)
+POST {{baseUrl}}/api/publico/taza-miga/ordenes
+Content-Type: application/json
+
+{
+  "sucursalId": 1,
+  "nombreCliente": "Token Falso",
+  "tipoEntrega": "MESA",
+  "numeroMesa": 1,
+  "tokenMesa": "token_falso_no_autorizado_12345678",
+  "metodoPago": "BARRA",
+  "lineas": [
+    {
+      "productoId": 1,
+      "cantidad": 1,
+      "opcionesIds": [1]
+    }
+  ]
+}
+
+### 14.12 [RN-23] Pedido para LLEVAR intentando método BARRA sin mesa verificada (400 Bad Request)
+POST {{baseUrl}}/api/publico/taza-miga/ordenes
+Content-Type: application/json
+
+{
+  "sucursalId": 1,
+  "nombreCliente": "Para Llevar Sin Pago Anticipado",
+  "tipoEntrega": "LLEVAR",
+  "metodoPago": "BARRA",
+  "lineas": [
+    {
+      "productoId": 1,
+      "cantidad": 1,
+      "opcionesIds": [1]
     }
   ]
 }
@@ -850,6 +917,7 @@ Content-Type: application/json
   "nombreCliente": "Cliente Para Cancelar",
   "tipoEntrega": "MESA",
   "numeroMesa": 3,
+  "tokenMesa": "{{tokenMesa3}}",
   "metodoPago": "BARRA",
   "lineas": [
     {

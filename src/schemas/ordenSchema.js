@@ -15,9 +15,11 @@ export const crearOrdenSchema = z.object({
     .min(2, 'El nombre debe tener al menos 2 caracteres')
     .max(80, 'El nombre no puede exceder 80 caracteres'), // RN-18
 
-  tipoEntrega: z.enum(['MESA', 'LLEVAR'], {
-    errorMap: () => ({ message: 'El tipo de entrega debe ser MESA o LLEVAR' })
-  }), // RN-17
+  tipoEntrega: z
+    .enum(['MESA', 'EN_MESA', 'LLEVAR'], {
+      errorMap: () => ({ message: 'El tipo de entrega debe ser MESA o LLEVAR' })
+    })
+    .transform((val) => (val === 'EN_MESA' ? 'MESA' : val)), // RN-17
 
   numeroMesa: z.coerce
     .number()
@@ -26,15 +28,20 @@ export const crearOrdenSchema = z.object({
     .nullable()
     .optional(),
 
+  tokenMesa: z.string().trim().nullable().optional(),
+  token: z.string().trim().nullable().optional(),
+
   horaRecogida: z
     .string()
     .trim()
     .nullable()
     .optional(),
 
-  metodoPago: z.enum(['TARJETA_DEMO', 'BARRA'], {
-    errorMap: () => ({ message: 'El método de pago debe ser TARJETA_DEMO o BARRA' })
-  }), // RN-23
+  metodoPago: z
+    .enum(['TARJETA_DEMO', 'BARRA', 'EN_BARRA'], {
+      errorMap: () => ({ message: 'El método de pago debe ser TARJETA_DEMO o BARRA' })
+    })
+    .transform((val) => (val === 'EN_BARRA' ? 'BARRA' : val)), // RN-23
 
   lineas: z
     .array(

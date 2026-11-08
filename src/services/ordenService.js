@@ -4,10 +4,39 @@ import { ordenRepository } from '../repositories/ordenRepository.js';
 import { ErrorApp } from '../ErrorApp.js';
 
 /**
+ * Genera el token criptográfico HMAC determinista para validar el QR de una mesa en una sucursal.
+ */
+export function generarTokenMesa(sucursalId, mesa) {
+  const secreto = process.env.JWT_SECRET || 'secreto_desarrollo_inseguro';
+  return crypto
+    .createHmac('sha256', secreto)
+    .update(`mesa:${sucursalId}:${mesa}`)
+    .digest('hex');
+}
+
+/**
+ * Valida de forma segura (tiempo constante) si el token provisto corresponde al QR físico de la mesa.
+ */
+export function verificarTokenMesa(sucursalId, mesa, token) {
+  if (!token || !sucursalId || !mesa) return false;
+  try {
+    const tokenEsperado = generarTokenMesa(sucursalId, mesa);
+    const bufProvisto = Buffer.from(String(token).trim(), 'utf-8');
+    const bufEsperado = Buffer.from(tokenEsperado, 'utf-8');
+    if (bufProvisto.length !== bufEsperado.length) return false;
+    return crypto.timingSafeEqual(bufProvisto, bufEsperado);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Servicio de negocio para la gestión de pedidos y seguimiento (HU-11, HU-12).
  * Aplica las reglas RN-13, RN-14, RN-15, RN-16, RN-17, RN-18, RN-19, RN-20, RN-23, RN-28, RN-29.
  */
 export const ordenService = {
+  generarTokenMesa,
+  verificarTokenMesa,
   /**
    * Crea un nuevo pedido recalculando el total en el servidor de forma segura (RN-15).
    * Asigna número consecutivo por sucursal mediante bloqueo transaccional (RN-19).
@@ -43,9 +72,12 @@ export const ordenService = {
         throw new ErrorApp('La sucursal seleccionada no está activa', 400);
       }
 
-      // 3. RN-17: Validar modalidad de entrega
+      // 3. RN-17: Validar modalidad de entrega y verificación por QR
       let numeroMesaFinal = null;
       let horaRecogidaFinal = null;
+      let mesaVerificada = false;
+
+      const tokenMesa = datosPedido.tokenMesa || datosPedido.token || null;
 
       if (datosPedido.tipoEntrega === 'MESA') {
         if (!datosPedido.numeroMesa) {
@@ -58,7 +90,17 @@ export const ordenService = {
             400
           );
         }
+
+        // RN-17: Requerir código QR verificado para pedidos en mesa
+        if (!verificarTokenMesa(sucursal.id, mesa, tokenMesa)) {
+          throw new ErrorApp(
+            'Acceso denegado: se requiere escanear un código QR válido de mesa para ordenar en el local',
+            403
+          );
+        }
+
         numeroMesaFinal = mesa;
+        mesaVerificada = true;
       } else if (datosPedido.tipoEntrega === 'LLEVAR') {
         numeroMesaFinal = null;
 
@@ -219,8 +261,17 @@ export const ordenService = {
       // Código de seguimiento no adivinable (crypto.randomUUID)
       const codigoSeguimiento = crypto.randomUUID();
 
-      // RN-23: Estado de pago según método
+      // RN-23: Estado de pago según método y validación de pago anticipado obligatorio
       const metodoPago = datosPedido.metodoPago;
+
+      // Si el método es BARRA, solo se permite con mesa validada por QR
+      if (metodoPago === 'BARRA' && (!mesaVerificada || datosPedido.tipoEntrega !== 'MESA')) {
+        throw new ErrorApp(
+          'El pago en barra solo está permitido para pedidos en mesa verificados con código QR. Los pedidos para llevar requieren pago anticipado',
+          400
+        );
+      }
+
       const estadoPago = metodoPago === 'TARJETA_DEMO' ? 'PAGADO' : 'SIN_PAGAR';
       const totalFinal = (totalCentavos / 100).toFixed(2);
 

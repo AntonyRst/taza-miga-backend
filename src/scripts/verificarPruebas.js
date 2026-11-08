@@ -1,4 +1,5 @@
 import { execSync } from 'child_process';
+import { generarTokenMesa } from '../services/ordenService.js';
 
 /**
  * Script de verificación automatizada para correr y validar todos los casos
@@ -405,6 +406,9 @@ async function correrPruebas() {
 
   // 14. Creación de pedidos (HU-11, RN-13 a RN-19, RN-23)
   console.log('\n--- 14. Creación de pedidos (HU-11, RN-13 a RN-19, RN-23) ---');
+  const tokenMesa1 = generarTokenMesa(1, 1);
+  const tokenMesa2 = generarTokenMesa(1, 2);
+
   const pedidoBarra = await peticion('/api/publico/taza-miga/ordenes', {
     method: 'POST',
     body: JSON.stringify({
@@ -412,6 +416,7 @@ async function correrPruebas() {
       nombreCliente: 'Ana Torres',
       tipoEntrega: 'MESA',
       numeroMesa: 2,
+      tokenMesa: tokenMesa2,
       metodoPago: 'BARRA',
       lineas: [
         {
@@ -467,6 +472,7 @@ async function correrPruebas() {
       nombreCliente: 'Cliente Tramposo',
       tipoEntrega: 'MESA',
       numeroMesa: 1,
+      tokenMesa: tokenMesa1,
       metodoPago: 'BARRA',
       total: 0.01,
       lineas: [
@@ -492,6 +498,7 @@ async function correrPruebas() {
       nombreCliente: 'Mesa 99',
       tipoEntrega: 'MESA',
       numeroMesa: 99,
+      tokenMesa: generarTokenMesa(1, 99),
       metodoPago: 'BARRA',
       lineas: [{ productoId: 1, cantidad: 1, opcionesIds: [1] }]
     })
@@ -505,7 +512,7 @@ async function correrPruebas() {
       nombreCliente: 'Hora Pasada',
       tipoEntrega: 'LLEVAR',
       horaRecogida: '2020-01-01T10:00:00Z',
-      metodoPago: 'BARRA',
+      metodoPago: 'TARJETA_DEMO',
       lineas: [{ productoId: 1, cantidad: 1, opcionesIds: [1] }]
     })
   });
@@ -518,6 +525,7 @@ async function correrPruebas() {
       nombreCliente: 'Sin Líneas',
       tipoEntrega: 'MESA',
       numeroMesa: 1,
+      tokenMesa: tokenMesa1,
       metodoPago: 'BARRA',
       lineas: []
     })
@@ -531,6 +539,7 @@ async function correrPruebas() {
       nombreCliente: 'Demasiadas Unidades',
       tipoEntrega: 'MESA',
       numeroMesa: 1,
+      tokenMesa: tokenMesa1,
       metodoPago: 'BARRA',
       lineas: [{ productoId: 1, cantidad: 21, opcionesIds: [1] }]
     })
@@ -544,6 +553,7 @@ async function correrPruebas() {
       nombreCliente: 'A',
       tipoEntrega: 'MESA',
       numeroMesa: 1,
+      tokenMesa: tokenMesa1,
       metodoPago: 'BARRA',
       lineas: [{ productoId: 1, cantidad: 1, opcionesIds: [1] }]
     })
@@ -557,11 +567,51 @@ async function correrPruebas() {
       nombreCliente: 'Sin Opción Obligatoria',
       tipoEntrega: 'MESA',
       numeroMesa: 1,
+      tokenMesa: tokenMesa1,
       metodoPago: 'BARRA',
       lineas: [{ productoId: 1, cantidad: 1, opcionesIds: [] }]
     })
   });
   asegurar('14.10 Falta de opción en grupo obligatorio responde 400 Bad Request (RN-13)', pedidoSinObligatorio.status === 400);
+
+  const pedidoMesaSinToken = await peticion('/api/publico/taza-miga/ordenes', {
+    method: 'POST',
+    body: JSON.stringify({
+      sucursalId: 1,
+      nombreCliente: 'Sin Token QR',
+      tipoEntrega: 'MESA',
+      numeroMesa: 1,
+      metodoPago: 'BARRA',
+      lineas: [{ productoId: 1, cantidad: 1, opcionesIds: [1] }]
+    })
+  });
+  asegurar('14.11 Pedido en MESA sin token QR responde 403 Forbidden (RN-17)', pedidoMesaSinToken.status === 403);
+
+  const pedidoMesaTokenInvalido = await peticion('/api/publico/taza-miga/ordenes', {
+    method: 'POST',
+    body: JSON.stringify({
+      sucursalId: 1,
+      nombreCliente: 'Token Falso',
+      tipoEntrega: 'MESA',
+      numeroMesa: 1,
+      tokenMesa: 'hash_invalido_1234567890abcdef',
+      metodoPago: 'BARRA',
+      lineas: [{ productoId: 1, cantidad: 1, opcionesIds: [1] }]
+    })
+  });
+  asegurar('14.12 Pedido en MESA con token QR inválido responde 403 Forbidden (RN-17)', pedidoMesaTokenInvalido.status === 403);
+
+  const pedidoLlevarBarraRechazado = await peticion('/api/publico/taza-miga/ordenes', {
+    method: 'POST',
+    body: JSON.stringify({
+      sucursalId: 1,
+      nombreCliente: 'Para Llevar En Barra',
+      tipoEntrega: 'LLEVAR',
+      metodoPago: 'BARRA',
+      lineas: [{ productoId: 1, cantidad: 1, opcionesIds: [1] }]
+    })
+  });
+  asegurar('14.13 Pedido para LLEVAR con método BARRA responde 400 Bad Request (RN-23)', pedidoLlevarBarraRechazado.status === 400);
 
   // 15. Seguimiento y búsqueda (HU-12, RN-20)
   console.log('\n--- 15. Seguimiento y búsqueda de pedidos (HU-12, RN-20) ---');
@@ -755,6 +805,7 @@ async function correrPruebas() {
       nombreCliente: 'Cliente Para Cancelar',
       tipoEntrega: 'MESA',
       numeroMesa: 3,
+      tokenMesa: generarTokenMesa(1, 3),
       metodoPago: 'BARRA',
       lineas: [{ productoId: 1, cantidad: 1, opcionesIds: [1] }]
     })
@@ -992,9 +1043,10 @@ async function correrPruebas() {
 
   // 18. Restablecer la contraseña de un compañero (HU-19, RN-07, RN-09, RN-27)
   console.log('\n--- 18. Restablecer la contraseña de un compañero (HU-19, RN-07, RN-09, RN-27) ---');
+  const idBaristaTest = loginBarista.data?.usuario?.id || 4;
 
   // 18.1 Gerente asigna contraseña temporal a Barista de su sucursal (200 OK)
-  const resetBaristaOk = await peticion('/api/admin/personal/3/reset-password', {
+  const resetBaristaOk = await peticion(`/api/admin/personal/${idBaristaTest}/reset-password`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${tokenGerente}` },
     body: JSON.stringify({ passwordTemporal: 'NuevaClaveTemporal123' })
@@ -1049,7 +1101,7 @@ async function correrPruebas() {
   );
 
   // 18.6 Contraseña temporal menor a 8 caracteres responde 400 Bad Request (RN-07)
-  const claveTemporalCorta = await peticion('/api/admin/personal/3/reset-password', {
+  const claveTemporalCorta = await peticion(`/api/admin/personal/${idBaristaTest}/reset-password`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${tokenGerente}` },
     body: JSON.stringify({ passwordTemporal: '123' })
@@ -1071,7 +1123,7 @@ async function correrPruebas() {
   );
 
   // 18.8 Barista intentando restablecer contraseña responde 403 Forbidden (RN-03)
-  const baristaResetAtaque = await peticion('/api/admin/personal/3/reset-password', {
+  const baristaResetAtaque = await peticion(`/api/admin/personal/${idBaristaTest}/reset-password`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${tokenBarista}` },
     body: JSON.stringify({ passwordTemporal: 'AtaqueBarista123' })
@@ -1309,7 +1361,7 @@ async function correrPruebas() {
   console.log('\n--- 20. Trasladar personal entre sucursales (HU-21, RN-04, RN-05, RN-26, RN-27) ---');
 
   // 20.1 Consultar pedidos en curso de la sucursal de un empleado antes de trasladar
-  const consultaPedidos = await peticion('/api/admin/personal/3/pedidos-en-curso', {
+  const consultaPedidos = await peticion(`/api/admin/personal/${idBaristaTest}/pedidos-en-curso`, {
     headers: { Authorization: `Bearer ${tokenDueno}` }
   });
   asegurar(
@@ -1318,7 +1370,7 @@ async function correrPruebas() {
   );
 
   // 20.2 Dueño traslada Barista a la nueva sucursal creada (200 OK y log en auditoría)
-  const trasladoOk = await peticion('/api/admin/personal/3/trasladar', {
+  const trasladoOk = await peticion(`/api/admin/personal/${idBaristaTest}/trasladar`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${tokenDueno}` },
     body: JSON.stringify({ nuevaSucursalId: idSucursalGps })
@@ -1337,11 +1389,11 @@ async function correrPruebas() {
   asegurar(
     '20.3 Barista ahora pertenece efectivamente a la nueva sucursal 200 OK (RN-26)',
     baristaTrasladado.status === 200 &&
-    baristaTrasladado.data.some(p => p.id === 3 && p.sucursalId === idSucursalGps)
+    baristaTrasladado.data.some(p => p.id === idBaristaTest && p.sucursalId === idSucursalGps)
   );
 
   // 20.4 Gerente intenta trasladar personal responde 403 Forbidden (RN-05)
-  const gerenteTraslada = await peticion('/api/admin/personal/3/trasladar', {
+  const gerenteTraslada = await peticion(`/api/admin/personal/${idBaristaTest}/trasladar`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${tokenGerente}` },
     body: JSON.stringify({ nuevaSucursalId: 1 })
@@ -1352,7 +1404,7 @@ async function correrPruebas() {
   );
 
   // 20.5 Trasladar a sucursal inactiva responde 400 Bad Request
-  const trasladoInactiva = await peticion('/api/admin/personal/3/trasladar', {
+  const trasladoInactiva = await peticion(`/api/admin/personal/${idBaristaTest}/trasladar`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${tokenDueno}` },
     body: JSON.stringify({ nuevaSucursalId: idSucursalManual })
@@ -1363,7 +1415,7 @@ async function correrPruebas() {
   );
 
   // 20.6 Trasladar a la misma sucursal actual responde 400 Bad Request
-  const trasladoMisma = await peticion('/api/admin/personal/3/trasladar', {
+  const trasladoMisma = await peticion(`/api/admin/personal/${idBaristaTest}/trasladar`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${tokenDueno}` },
     body: JSON.stringify({ nuevaSucursalId: idSucursalGps })
@@ -1385,7 +1437,7 @@ async function correrPruebas() {
   );
 
   // 20.8 Restaurar Barista a su Sucursal 1 original para mantener estado limpio (200 OK)
-  const restaurarSucursal = await peticion('/api/admin/personal/3/trasladar', {
+  const restaurarSucursal = await peticion(`/api/admin/personal/${idBaristaTest}/trasladar`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${tokenDueno}` },
     body: JSON.stringify({ nuevaSucursalId: 1 })
