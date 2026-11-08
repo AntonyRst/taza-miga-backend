@@ -16,6 +16,12 @@ router.get('/:slug/menu', async (req, res, next) => {
     const menu = await catalogoPublicoService.obtenerMenu(slug);
     res.status(200).json(menu);
   } catch (error) {
+    if (error?.codigoEstado === 404) {
+      return res.status(404).json({
+        ok: false,
+        error: `Negocio no encontrado con slug: ${req.params.slug}`
+      });
+    }
     next(error);
   }
 });

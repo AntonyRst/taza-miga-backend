@@ -43,13 +43,16 @@ export const ordenService = {
    */
   async crearPedido(slug, datosPedido) {
     // 1. Obtener el negocio a partir del slug (RN-01)
+    const slugNormalizado = String(slug || '').trim().toLowerCase() === 'taza-y-miga'
+      ? 'taza-miga'
+      : String(slug || '').trim().toLowerCase();
     const [negocios] = await pool.query(
       'SELECT id, nombre, slug FROM negocios WHERE slug = ?',
-      [slug]
+      [slugNormalizado]
     );
     const negocio = negocios[0];
     if (!negocio) {
-      throw new ErrorApp('Negocio no encontrado', 404);
+      throw new ErrorApp(`Negocio no encontrado con slug: ${slug}`, 404);
     }
 
     const conexion = await pool.getConnection();
@@ -364,13 +367,16 @@ export const ordenService = {
    * Si no coinciden exactamente, responde 404 con mensaje idéntico sin pistas.
    */
   async buscarOrdenPerdida(slug, { numeroOrden, nombreCliente }) {
+    const slugNormalizado = String(slug || '').trim().toLowerCase() === 'taza-y-miga'
+      ? 'taza-miga'
+      : String(slug || '').trim().toLowerCase();
     const [negocios] = await pool.query(
       'SELECT id FROM negocios WHERE slug = ?',
-      [slug]
+      [slugNormalizado]
     );
     const negocio = negocios[0];
     if (!negocio) {
-      throw new ErrorApp('Negocio no encontrado', 404);
+      throw new ErrorApp(`Negocio no encontrado con slug: ${slug}`, 404);
     }
 
     const orden = await ordenRepository.buscarPorNumeroYNombre(

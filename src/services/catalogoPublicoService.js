@@ -7,18 +7,30 @@ import { ErrorApp } from '../ErrorApp.js';
 
 export const catalogoPublicoService = {
   /**
+   * Normaliza el slug para admitir tanto 'taza-miga' como 'taza-y-miga'.
+   * @param {string} slug
+   * @returns {string}
+   */
+  normalizarSlug(slug) {
+    const limpio = String(slug || '').trim().toLowerCase();
+    if (limpio === 'taza-y-miga') return 'taza-miga';
+    return limpio;
+  },
+
+  /**
    * Obtiene la información del negocio a partir de su slug público.
    * @param {string} slug
    * @returns {Promise<object>}
    */
   async obtenerNegocioPorSlug(slug) {
+    const slugNormalizado = this.normalizarSlug(slug);
     const [filas] = await pool.query(
       'SELECT id, nombre, slug, logo_url AS logoUrl FROM negocios WHERE slug = ? LIMIT 1',
-      [slug]
+      [slugNormalizado]
     );
 
     if (filas.length === 0) {
-      throw new ErrorApp('Negocio no encontrado', 404);
+      throw new ErrorApp(`Negocio no encontrado con slug: ${slug}`, 404);
     }
 
     return filas[0];

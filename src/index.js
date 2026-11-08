@@ -44,34 +44,45 @@ app.use(cors({
 app.use(express.json());
 
 // Ruta de comprobación de salud de la API
-app.get('/api/salud', (req, res) => {
+const manejadorSalud = (req, res) => {
   res.json({
     estado: 'ok',
     mensaje: 'Servidor Taza & Miga API activo',
     fecha: new Date().toISOString()
   });
-});
+};
+app.get('/api/salud', manejadorSalud);
+app.get('/salud', manejadorSalud);
 
 // Rutas de autenticación
 app.use('/api/auth', authRoutes);
+app.use('/auth', authRoutes);
 
 // Rutas de administración básica y usuarios (RN-01, RN-02, RN-03)
 app.use('/api/admin', adminRoutes);
+app.use('/admin', adminRoutes);
 
 // Rutas de administración de catálogo y menú (HU-09, HU-10, RN-10, RN-11, RN-12)
 app.use('/api/categorias', categoriaRoutes);
+app.use('/categorias', categoriaRoutes);
 app.use('/api/grupos-opciones', grupoOpcionesRoutes);
+app.use('/grupos-opciones', grupoOpcionesRoutes);
 app.use('/api/opciones', opcionRoutes);
+app.use('/opciones', opcionRoutes);
 app.use('/api/productos', productoRoutes);
+app.use('/productos', productoRoutes);
 
 // Rutas públicas para clientes sin cuenta (HU-05, HU-06)
 app.use('/api/publico', publicoRoutes);
+app.use('/publico', publicoRoutes);
 
 // Rutas del panel KDS del barista (HU-13 a HU-17, RN-21 a RN-24)
 app.use('/api/kds', kdsRoutes);
+app.use('/kds', kdsRoutes);
 
 // Rutas de administración de sucursales (HU-20, RN-05, RN-25)
 app.use('/api/sucursales', sucursalRoutes);
+app.use('/sucursales', sucursalRoutes);
 
 // Manejo de rutas no encontradas (404 JSON seguro en vez de HTML)
 app.use((req, res) => {
