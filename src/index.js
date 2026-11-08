@@ -16,16 +16,31 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const origenesFrontend = process.env.FRONTEND_URL
-  ? (process.env.FRONTEND_URL.includes(',')
-      ? process.env.FRONTEND_URL.split(',').map((url) => url.trim())
-      : process.env.FRONTEND_URL)
-  : 'http://localhost:5173';
+const orígenesPermitidos = [
+  'https://taza-miga-frontend.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:3000'
+];
 
-// CORS configurado solo para el origen del frontend
+if (process.env.FRONTEND_URL) {
+  const urlLimpia = process.env.FRONTEND_URL.trim().replace(/\/$/, '');
+  if (!orígenesPermitidos.includes(urlLimpia)) {
+    orígenesPermitidos.push(urlLimpia);
+  }
+}
+
 app.use(cors({
-  origin: origenesFrontend,
-  credentials: true
+  origin: function (origin, callback) {
+    // Permite peticiones sin origin (como apps móviles, curl o herramientas locales)
+    if (!origin) return callback(null, true);
+    if (orígenesPermitidos.indexOf(origin) !== -1) {
+      return callback(null, true);
+    }
+    return callback(new Error(`Bloqueado por CORS: ${origin}`));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
