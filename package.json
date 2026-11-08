@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
+    "migrar-esquema": "node src/scripts/migrarEsquema.js",
     "inicializar": "node src/scripts/inicializar.js",
     "sembrar-pruebas": "node src/scripts/sembrarPruebas.js",
     "sembrar-menu": "node src/scripts/sembrarMenu.js",

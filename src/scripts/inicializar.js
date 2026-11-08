@@ -28,45 +28,39 @@ const esquemaDueno = z.object({
 });
 
 /**
- * Solicita una contraseña enmascarada si la terminal lo soporta (TTY), o texto normal si es un flujo redirigido.
+ * Crea un lector de líneas secuencial compatible tanto con entrada interactiva
+ * en terminal (TTY) como con entrada redirigida por tubería (pipe).
  */
-async function pedirPassword(pregunta) {
-  if (!input.isTTY) {
-    const rl = readline.createInterface({ input, output });
-    const respuesta = await rl.question(pregunta);
-    rl.close();
-    return respuesta;
-  }
+function crearLectorInteractivo() {
+  const rl = readline.createInterface({ input, output });
+  const colaLineas = [];
+  const esperadores = [];
 
-  output.write(pregunta);
-  input.setRawMode(true);
-  input.resume();
-
-  return new Promise((resolve) => {
-    let password = '';
-    const onData = (chunk) => {
-      const char = chunk.toString();
-      if (char === '\n' || char === '\r' || char === '\u0004') {
-        input.setRawMode(false);
-        input.pause();
-        input.removeListener('data', onData);
-        output.write('\n');
-        resolve(password);
-      } else if (char === '\u0003') { // Ctrl+C
-        output.write('\n');
-        process.exit(1);
-      } else if (char === '\b' || char === '\x7f') { // Backspace
-        if (password.length > 0) {
-          password = password.slice(0, -1);
-          output.write('\b \b');
-        }
-      } else {
-        password += char;
-        output.write('*');
-      }
-    };
-    input.on('data', onData);
+  rl.on('line', (linea) => {
+    if (esperadores.length > 0) {
+      const resolver = esperadores.shift();
+      resolver(linea);
+    } else {
+      colaLineas.push(linea);
+    }
   });
+
+  return {
+    async preguntar(textoPregunta) {
+      output.write(textoPregunta);
+      if (colaLineas.length > 0) {
+        const respuesta = colaLineas.shift();
+        output.write('\n');
+        return respuesta;
+      }
+      return new Promise((resolve) => {
+        esperadores.push(resolve);
+      });
+    },
+    cerrar() {
+      rl.close();
+    }
+  };
 }
 
 async function inicializar() {
@@ -74,6 +68,7 @@ async function inicializar() {
   console.log('   TAZA & MIGA - INICIALIZACIÓN DEL SISTEMA (HU-04)');
   console.log('====================================================\n');
 
+  const lector = crearLectorInteractivo();
   const conexion = await pool.getConnection();
 
   try {
@@ -82,6 +77,7 @@ async function inicializar() {
       "SELECT COUNT(*) AS total FROM usuarios WHERE rol = 'DUENO' AND activo = TRUE"
     );
     if (duenosExistentes[0].total > 0) {
+      lector.cerrar();
       console.error('❌ Error: El sistema ya ha sido inicializado previamente.');
       console.error('Por seguridad, este script solo se puede ejecutar una vez.');
       process.exit(1);
@@ -95,17 +91,14 @@ async function inicializar() {
       console.log(`ℹ️ Negocio detectado: "${negocioPreexistente.nombre}" (ID: ${negocioPreexistente.id}, Slug: ${negocioPreexistente.slug}) con catálogo cargado.`);
       console.log('Se procederá a dar de alta la cuenta del Dueño/Administrador principal para este negocio.\n');
 
-      const rl = readline.createInterface({ input, output });
-
       console.log('--- Cuenta del Propietario (Dueño) ---');
-      const duenoNombre = (await rl.question('Nombre completo del dueño: ')).trim();
-      const duenoTelefono = (await rl.question('Teléfono de contacto (para validación): ')).trim();
-      const duenoCorreo = (await rl.question('Correo electrónico (será el usuario de acceso): ')).trim();
+      const duenoNombre = (await lector.preguntar('Nombre completo del dueño: ')).trim();
+      const duenoTelefono = (await lector.preguntar('Teléfono de contacto (para validación): ')).trim();
+      const duenoCorreo = (await lector.preguntar('Correo electrónico (será el usuario de acceso): ')).trim();
+      const duenoPassword = (await lector.preguntar('Contraseña del dueño (mínimo 8 caracteres): ')).trim();
+      const duenoPasswordConfirm = (await lector.preguntar('Confirmar contraseña: ')).trim();
 
-      rl.close();
-
-      const duenoPassword = (await pedirPassword('Contraseña del dueño (mínimo 8 caracteres): ')).trim();
-      const duenoPasswordConfirm = (await pedirPassword('Confirmar contraseña: ')).trim();
+      lector.cerrar();
 
       if (duenoPassword !== duenoPasswordConfirm) {
         console.error('\n❌ Error: Las contraseñas no coinciden.');
@@ -154,11 +147,9 @@ async function inicializar() {
       return;
     }
 
-    const rl = readline.createInterface({ input, output });
-
     console.log('--- 1. Datos del Negocio ---');
-    const negocioNombre = (await rl.question('Nombre del negocio: ')).trim();
-    let negocioSlug = (await rl.question(`Slug del negocio (deja vacío para generar desde el nombre): `)).trim();
+    const negocioNombre = (await lector.preguntar('Nombre del negocio: ')).trim();
+    let negocioSlug = (await lector.preguntar(`Slug del negocio (deja vacío para generar desde el nombre): `)).trim();
     if (!negocioSlug) {
       negocioSlug = negocioNombre.toLowerCase()
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -167,21 +158,19 @@ async function inicializar() {
     }
 
     console.log('\n--- 2. Primera Sucursal ---');
-    const sucursalNombre = (await rl.question('Nombre de la sucursal (ej. Casa Central): ')).trim();
-    const sucursalDireccion = (await rl.question('Dirección física: ')).trim();
-    const sucursalTelefono = (await rl.question('Teléfono de la sucursal (opcional): ')).trim();
-    const sucursalMesas = (await rl.question('Cantidad de mesas: ')).trim();
+    const sucursalNombre = (await lector.preguntar('Nombre de la sucursal (ej. Casa Central): ')).trim();
+    const sucursalDireccion = (await lector.preguntar('Dirección física: ')).trim();
+    const sucursalTelefono = (await lector.preguntar('Teléfono de la sucursal (opcional): ')).trim();
+    const sucursalMesas = (await lector.preguntar('Cantidad de mesas: ')).trim();
 
     console.log('\n--- 3. Cuenta del Propietario (Dueño) ---');
-    const duenoNombre = (await rl.question('Nombre completo del dueño: ')).trim();
-    const duenoTelefono = (await rl.question('Teléfono de contacto (para validación): ')).trim();
-    const duenoCorreo = (await rl.question('Correo electrónico (será el usuario de acceso): ')).trim();
+    const duenoNombre = (await lector.preguntar('Nombre completo del dueño: ')).trim();
+    const duenoTelefono = (await lector.preguntar('Teléfono de contacto (para validación): ')).trim();
+    const duenoCorreo = (await lector.preguntar('Correo electrónico (será el usuario de acceso): ')).trim();
+    const duenoPassword = (await lector.preguntar('Contraseña del dueño (mínimo 8 caracteres): ')).trim();
+    const duenoPasswordConfirm = (await lector.preguntar('Confirmar contraseña: ')).trim();
 
-    rl.close();
-
-    // Pedir contraseña enmascarada (mínimo 8 caracteres)
-    const duenoPassword = (await pedirPassword('Contraseña del dueño (mínimo 8 caracteres): ')).trim();
-    const duenoPasswordConfirm = (await pedirPassword('Confirmar contraseña: ')).trim();
+    lector.cerrar();
 
     if (duenoPassword !== duenoPasswordConfirm) {
       console.error('\n❌ Error: Las contraseñas no coinciden.');

@@ -1,15 +1,23 @@
 import mysql from 'mysql2/promise';
 import dotenv from 'dotenv';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
+const rutaCaPem = path.resolve(__dirname, '../ca.pem');
+const certificadoCa = process.env.DB_SSL_CA
+  ? process.env.DB_SSL_CA
+  : (fs.existsSync(rutaCaPem) ? fs.readFileSync(rutaCaPem) : undefined);
+
 const configuracionSsl = process.env.DB_SSL === 'true'
   ? {
-      rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED === 'true',
-      ...(process.env.DB_SSL_CA ? { ca: process.env.DB_SSL_CA } : {})
+      rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED
+        ? process.env.DB_SSL_REJECT_UNAUTHORIZED === 'true'
+        : Boolean(certificadoCa),
+      ...(certificadoCa ? { ca: certificadoCa } : {})
     }
   : undefined;
 
