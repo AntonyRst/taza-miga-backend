@@ -16,27 +16,25 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const orígenesPermitidos = [
-  'https://taza-miga-frontend.vercel.app',
-  'http://localhost:5173',
-  'http://localhost:3000'
+const dominiosPermitidosRegex = [
+  /^https:\/\/.*\.vercel\.app$/,
+  /^http:\/\/localhost(:\d+)?$/
 ];
-
-if (process.env.FRONTEND_URL) {
-  const urlLimpia = process.env.FRONTEND_URL.trim().replace(/\/$/, '');
-  if (!orígenesPermitidos.includes(urlLimpia)) {
-    orígenesPermitidos.push(urlLimpia);
-  }
-}
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Permite peticiones sin origin (como apps móviles, curl o herramientas locales)
+    // Permitir peticiones sin origen (curl, server-to-server, health checks)
     if (!origin) return callback(null, true);
-    if (orígenesPermitidos.indexOf(origin) !== -1) {
+
+    const esValido = dominiosPermitidosRegex.some(regex => regex.test(origin)) ||
+      (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL.trim().replace(/\/$/, ''));
+
+    if (esValido) {
       return callback(null, true);
     }
-    return callback(new Error(`Bloqueado por CORS: ${origin}`));
+
+    // Usar null, false en lugar de lanzar Error para no provocar un crash 500
+    return callback(null, false);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
