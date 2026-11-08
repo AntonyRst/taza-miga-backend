@@ -1,6 +1,7 @@
 import { sucursalRepository } from '../repositories/sucursalRepository.js';
 import { auditoriaRepository } from '../repositories/auditoriaRepository.js';
 import { ErrorApp } from '../ErrorApp.js';
+import { generarTokenMesa } from './ordenService.js';
 
 /**
  * Servicio para la gestión de sucursales (HU-20).
@@ -28,12 +29,17 @@ export const sucursalService = {
 
   /**
    * Lista todas las sucursales del negocio.
+   * RN-04: El gerente solo ve su propia sucursal; el dueño ve todas las de su negocio.
    * @param {object} usuario
    * @returns {Promise<Array>}
    */
   async listarTodas(usuario) {
     // RN-01: Consultar únicamente las sucursales del negocio del usuario autenticado
-    return sucursalRepository.listarPorNegocio(usuario.negocio_id);
+    const sucursales = await sucursalRepository.listarPorNegocio(usuario.negocio_id);
+    if (usuario.rol === 'GERENTE' && usuario.sucursal_id) {
+      return sucursales.filter((s) => s.id === usuario.sucursal_id);
+    }
+    return sucursales;
   },
 
   /**
@@ -136,5 +142,40 @@ export const sucursalService = {
       activa: Boolean(activa),
       mensaje: `Sucursal ${activa ? 'activada' : 'desactivada'} con éxito`
     };
+  },
+
+  /**
+   * Genera los tokens y URLs para los códigos QR de todas las mesas de la sucursal.
+   * Exige rol GERENTE (solo su propia sucursal) o DUENO (todas las de su negocio).
+   * @param {object} usuario
+   * @param {number} sucursalId
+   * @returns {Promise<Array<{ mesa: number, url: string, token: string }>>}
+   */
+  async generarMesasQr(usuario, sucursalId) {
+    // RN-04: Si es GERENTE, solo puede acceder a su propia sucursal
+    if (usuario.rol === 'GERENTE' && usuario.sucursal_id !== sucursalId) {
+      throw new ErrorApp('Sucursal no encontrada', 404);
+    }
+
+    // RN-01: Filtrar siempre por el negocio del token
+    const sucursal = await sucursalRepository.buscarPorIdYNegocio(sucursalId, usuario.negocio_id);
+    if (!sucursal) {
+      throw new ErrorApp('Sucursal no encontrada', 404);
+    }
+
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '');
+    const cantidadMesas = Number(sucursal.cantidadMesas) || 0;
+    const lista = [];
+
+    for (let m = 1; m <= cantidadMesas; m++) {
+      const token = generarTokenMesa(sucursal.id, m);
+      lista.push({
+        mesa: m,
+        url: `${frontendUrl}/?sucursalId=${sucursal.id}&mesa=${m}&token=${token}`,
+        token
+      });
+    }
+
+    return lista;
   }
 };

@@ -1357,6 +1357,60 @@ async function correrPruebas() {
       Boolean(rutaNoMapeada.data.error || rutaNoMapeada.data.mensaje)
   );
 
+  // 19.15 Dueño genera lista de QRs de mesas de una sucursal (200 OK)
+  const qrsDueno = await peticion('/api/admin/sucursales/1/mesas-qr', {
+    headers: { Authorization: `Bearer ${tokenDueno}` }
+  });
+  asegurar(
+    '19.15 Dueño genera QRs de mesas 200 OK y devuelve lista de mesas con URL y token (HU-20)',
+    qrsDueno.status === 200 &&
+    Array.isArray(qrsDueno.data) &&
+    qrsDueno.data.length > 0 &&
+    Boolean(qrsDueno.data[0].url) &&
+    Boolean(qrsDueno.data[0].token)
+  );
+
+  // 19.16 Gerente genera QRs de su propia sucursal (200 OK)
+  const qrsGerentePropia = await peticion('/api/admin/sucursales/1/mesas-qr', {
+    headers: { Authorization: `Bearer ${tokenGerente}` }
+  });
+  asegurar(
+    '19.16 Gerente genera QRs de su propia sucursal 200 OK (HU-20, RN-04)',
+    qrsGerentePropia.status === 200 &&
+    Array.isArray(qrsGerentePropia.data) &&
+    qrsGerentePropia.data.length > 0
+  );
+
+  // 19.17 Gerente intenta generar QRs de una sucursal ajena responde 404 Not Found (RN-04)
+  const qrsGerenteAjena = await peticion(`/api/admin/sucursales/${idSucursalManual}/mesas-qr`, {
+    headers: { Authorization: `Bearer ${tokenGerente}` }
+  });
+  asegurar(
+    '19.17 Gerente intentando generar QRs de sucursal ajena responde 404 Not Found (RN-04)',
+    qrsGerenteAjena.status === 404
+  );
+
+  // 19.18 Barista intenta generar QRs de mesas responde 403 Forbidden (RN-03)
+  const qrsBarista = await peticion('/api/admin/sucursales/1/mesas-qr', {
+    headers: { Authorization: `Bearer ${tokenBarista}` }
+  });
+  asegurar(
+    '19.18 Barista intentando generar QRs de mesas responde 403 Forbidden (RN-03)',
+    qrsBarista.status === 403
+  );
+
+  // 19.19 Gerente lista sucursales y solo ve su propia sucursal asignada (RN-04)
+  const sucursalesGerente = await peticion('/api/admin/sucursales', {
+    headers: { Authorization: `Bearer ${tokenGerente}` }
+  });
+  asegurar(
+    '19.19 Gerente lista sucursales y solo ve su propia sucursal asignada (RN-04)',
+    sucursalesGerente.status === 200 &&
+    Array.isArray(sucursalesGerente.data) &&
+    sucursalesGerente.data.length > 0 &&
+    sucursalesGerente.data.every((s) => s.id === 1)
+  );
+
   // 20. Trasladar personal entre sucursales (HU-21, RN-04, RN-05, RN-26, RN-27)
   console.log('\n--- 20. Trasladar personal entre sucursales (HU-21, RN-04, RN-05, RN-26, RN-27) ---');
 

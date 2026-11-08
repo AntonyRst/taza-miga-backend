@@ -185,6 +185,21 @@ router.get('/sucursales/:id', async (req, res, next) => {
 });
 
 /**
+ * GET /api/admin/sucursales/:id/mesas-qr
+ * Genera la lista de mesas con sus URLs y firmas HMAC para códigos QR imprimibles.
+ * Exige GERENTE (solo su sucursal) o DUENO (cualquiera de su negocio) (RN-01, RN-04).
+ */
+router.get('/sucursales/:id/mesas-qr', async (req, res, next) => {
+  try {
+    const sucursalId = z.coerce.number().int().positive('ID de sucursal inválido').parse(req.params.id);
+    const mesas = await sucursalService.generarMesasQr(req.usuario, sucursalId);
+    res.status(200).json(mesas);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * POST /api/admin/sucursales
  * Registra una nueva sucursal con coordenadas o manual (HU-20, RN-05, RN-25).
  */

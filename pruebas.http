@@ -1349,6 +1349,26 @@ Authorization: Bearer {{tokenGerente}}
 GET {{baseUrl}}/api/ruta-que-no-existe
 Authorization: Bearer {{tokenDueno}}
 
+### 19.15 [HU-20, RN-04] Dueño genera lista de QRs de mesas de una sucursal (200 OK)
+GET {{baseUrl}}/api/admin/sucursales/1/mesas-qr
+Authorization: Bearer {{tokenDueno}}
+
+### 19.16 [HU-20, RN-04] Gerente genera QRs de su propia sucursal (200 OK)
+GET {{baseUrl}}/api/admin/sucursales/1/mesas-qr
+Authorization: Bearer {{tokenGerente}}
+
+### 19.17 [RN-04] Gerente intenta generar QRs de una sucursal ajena (404 Not Found)
+GET {{baseUrl}}/api/admin/sucursales/{{idSucursalManual}}/mesas-qr
+Authorization: Bearer {{tokenGerente}}
+
+### 19.18 [RN-03] Barista intenta generar QRs de mesas (403 Forbidden)
+GET {{baseUrl}}/api/admin/sucursales/1/mesas-qr
+Authorization: Bearer {{tokenBarista}}
+
+### 19.19 [RN-04] Gerente lista sucursales y solo ve su propia sucursal asignada (200 OK)
+GET {{baseUrl}}/api/admin/sucursales
+Authorization: Bearer {{tokenGerente}}
+
 
 ### ===================================================================
 ### 20. HU-21: TRASLADAR PERSONAL ENTRE SUCURSALES
